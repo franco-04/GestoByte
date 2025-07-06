@@ -1,0 +1,234 @@
+:root {
+  --primary: #4361ee;
+  --secondary: #3a0ca3;
+  --text: #2b2d42;
+  --light-gray: #f8f9fa;
+  --border: #dee2e6;
+  --error: #ef233c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.auth-container {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #fff;
+}
+
+.divider-line {
+  display: none;
+}
+
+.auth-image {
+  display: none;
+  background: #f5f7fa;
+}
+
+.auth-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.input-group {
+  width: 100%;
+  margin-bottom: 0.3rem;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.65rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: var(--light-gray);
+  transition: all 0.2s;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+  background-color: #fff;
+}
+
+.input-error {
+  border-color: var(--error) !important;
+}
+
+select.input-field {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 0.9em;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-button:hover {
+  background: var(--secondary);
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.switch-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.switch-link:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  color: var(--error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding-left: 0.5rem;
+}
+
+/* Versión desktop */
+@media (min-width: 768px) {
+  .auth-container {
+    align-items: center;
+    justify-content: center;
+    background: #f5f7fa;
+  }
+  
+  .auth-form {
+    background: white;
+    border-radius: 0 10px 10px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    max-width: 450px;
+  }
+}
+
+/* Versión con imagen */
+@media (min-width: 992px) {
+  .auth-container {
+    background: #fff;
+  }
+
+  .divider-line {
+    display: block;
+    width: 1px;
+    background: var(--border);
+    height: 80%;
+    align-self: center;
+  }
+
+  .auth-image {
+    display: flex;
+    flex: 1;
+    max-width: 45%;
+    height: 100vh;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .auth-form {
+    flex: 1;
+    max-width: 45%;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 2rem;
+  }
+}
+
+/* Ajuste para pantallas muy grandes */
+@media (min-width: 1200px) {
+  .auth-form {
+    padding: 2rem 3rem;
+  }
+}
+.global-error {
+  background: #ffebee;
+  color: var(--error);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border-left: 4px solid var(--error);
+}
