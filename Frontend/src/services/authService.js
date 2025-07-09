@@ -2,6 +2,7 @@
 import api from '../api/api';
 import errorHandler from '../utils/errorHandler';
 
+
 // 🔁 Mapeo de roles de BD a roles de frontend
 const roleMap = {
   estudiante: 'estudiante',
