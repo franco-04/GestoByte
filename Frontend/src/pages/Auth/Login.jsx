@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import loginImage from "../../assets/inicio.jpg";
+import loginImage from "../../assets/log.png";
 import { FiMail, FiLock, FiLogIn } from "react-icons/fi";
 import "./Auth.css";
 import authService from "../../services/authService";

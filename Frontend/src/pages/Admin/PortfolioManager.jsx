@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; 
 import api from "../../api/api";
 import "../Admin/Admin.css";
 
@@ -20,15 +20,19 @@ export default function PortfolioManager() {
   ]);
   const [misPortafolios, setMisPortafolios] = useState([]);
 
-  // Estados para edición
+ 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState({
     id_portafolio: null,
     nombre: "",
     descripcion: "",
     fecha_inicio: "",
-    fecha_fin: ""
+    fecha_fin: "",
+    carrera: "",
+    estudiantes_actuales: [],
+    estudiantes_seleccionados: []
   });
+  const [estudiantesDisponibles, setEstudiantesDisponibles] = useState([]);
 
   useEffect(() => {
     const fetchEstudiantes = async () => {
@@ -52,7 +56,7 @@ export default function PortfolioManager() {
     }
   };
 
-  // Filtrar estudiantes por carrera seleccionada
+
   const estudiantesFiltrados = estudiantes.filter((e) => e.carrera === carrera);
 
   const createPortafolio = async (data) => {
@@ -101,7 +105,6 @@ export default function PortfolioManager() {
     setSuccess("");
   };
 
-  // Eliminar portafolio (eliminación lógica)
   const eliminarPortafolio = async (id_portafolio) => {
     if (!window.confirm("¿Seguro que deseas eliminar este portafolio?")) return;
     try {
@@ -113,19 +116,33 @@ export default function PortfolioManager() {
     }
   };
 
-  // Abrir modal de edición
-  const abrirModalEdicion = (p) => {
-    setEditData({
-      id_portafolio: p.id_portafolio,
-      nombre: p.nombre,
-      descripcion: p.descripcion,
-      fecha_inicio: p.fecha_inicio?.slice(0, 10),
-      fecha_fin: p.fecha_fin?.slice(0, 10)
-    });
-    setShowEditModal(true);
+  const abrirModalEdicion = async (p) => {
+    try {
+
+      const res = await api.get(`/auth/portafolios/${p.id_portafolio}/estudiantes`);
+      const { carrera: carreraPortafolio, estudiantes: estudiantesActuales } = res.data;
+      
+ 
+      const estudiantesDeCarrera = estudiantes.filter(e => e.carrera === carreraPortafolio);
+      
+      setEditData({
+        id_portafolio: p.id_portafolio,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        fecha_inicio: p.fecha_inicio?.slice(0, 10),
+        fecha_fin: p.fecha_fin?.slice(0, 10),
+        carrera: carreraPortafolio,
+        estudiantes_actuales: estudiantesActuales,
+        estudiantes_seleccionados: estudiantesActuales.map(e => e.id_usuario.toString())
+      });
+      
+      setEstudiantesDisponibles(estudiantesDeCarrera);
+      setShowEditModal(true);
+    } catch (error) {
+      setError("Error al cargar datos del portafolio");
+    }
   };
 
-  // Guardar cambios de edición
   const editarPortafolio = async (e) => {
     e.preventDefault();
     try {
@@ -133,7 +150,8 @@ export default function PortfolioManager() {
         nombre: editData.nombre,
         descripcion: editData.descripcion,
         fecha_inicio: editData.fecha_inicio,
-        fecha_fin: editData.fecha_fin
+        fecha_fin: editData.fecha_fin,
+        estudiantes: editData.estudiantes_seleccionados
       });
       setSuccess("Portafolio actualizado correctamente");
       setShowEditModal(false);
@@ -152,7 +170,6 @@ export default function PortfolioManager() {
         </p>
       </div>
 
-      {/* Mensajes de estado */}
       {error && (
         <div className="admin-alert admin-alert-error">
           <span>{error}</span>
@@ -306,7 +323,7 @@ export default function PortfolioManager() {
           </form>
         </div>
 
-        {/* Lista de portafolios del coordinador */}
+
         <div className="admin-card" style={{ marginTop: "2rem" }}>
           <div className="card-header">
             <h3>Mis Portafolios</h3>
@@ -355,7 +372,6 @@ export default function PortfolioManager() {
         </div>
       </div>
 
-      {/* Modal de edición */}
       {showEditModal && (
         <div className="modal-backdrop">
           <div className="modal">
@@ -399,6 +415,35 @@ export default function PortfolioManager() {
                   required
                 />
               </div>
+              
+
+              <div className="form-group">
+                <label className="form-label">
+                  Estudiantes de {editData.carrera} ({estudiantesDisponibles.length} disponibles)
+                </label>
+                <div className="students-selector">
+                  <select
+                    multiple
+                    className="form-select form-select-multiple"
+                    value={editData.estudiantes_seleccionados}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      estudiantes_seleccionados: Array.from(e.target.selectedOptions, (o) => o.value)
+                    })}
+                    style={{ minHeight: '120px' }}
+                  >
+                    {estudiantesDisponibles.map((e) => (
+                      <option key={e.id_usuario} value={e.id_usuario}>
+                        {e.nombre} {e.apellido}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="form-help-text">
+                    Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples estudiantes
+                  </div>
+                </div>
+              </div>
+
               <div className="form-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
                   Cancelar

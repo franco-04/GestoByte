@@ -9,18 +9,21 @@ import {
 import authService from '../../services/authService';
 import PortfolioManager from './PortfolioManager';
 import '../Admin/Admin.css';
+import logo from "../../assets/log.png";
+
 
 export default function AdminDashboard() {
   const user = authService.getCurrentUser();
   const [vista, setVista] = useState('bienvenida');
 
   return (
-    <div className="admin-dashboard-container">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h2>Panel de Profesores</h2>
-        </div>
-        <nav className="sidebar-nav">
+<div className="admin-dashboard-container">
+  <aside className="sidebar">
+    <div className="sidebar-header">
+       <img src={logo} alt="Logo" className="sidebar-logo" />
+      <h2>Panel de Profesores</h2>
+    </div>
+    <nav className="sidebar-nav">
           <button
             className={`sidebar-button${vista === 'bienvenida' ? ' active' : ''}`}
             onClick={() => setVista('bienvenida')}
