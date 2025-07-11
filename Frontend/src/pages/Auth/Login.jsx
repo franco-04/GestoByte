@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import loginImage from "../../assets/inicio.jpg";
+import loginImage from "../../assets/log.png";
 import { FiMail, FiLock, FiLogIn } from "react-icons/fi";
 import "./Auth.css";
 import authService from "../../services/authService";
@@ -20,21 +20,21 @@ export default function Login() {
 
     try {
       const response = await authService.login({ email, password });
-      localStorage.setItem('authToken', response.token);
-      
+      localStorage.setItem("authToken", response.token);
+
       // Redirigir según el rol del usuario
       switch (response.user.rol) {
-        case 'estudiante':
-          navigate('/estudiante');
+        case "estudiante":
+          navigate("/estudiante");
           break;
-        case 'administrador':
-          navigate('/admin');
+        case "administrador":
+          navigate("/admin");
           break;
-        case 'superadministrador':
-          navigate('/superadmin');
+        case "superadministrador":
+          navigate("/superadmin");
           break;
         default:
-          navigate('/'); // Página por defecto
+          navigate("/"); // Página por defecto
           break;
       }
     } catch (err) {
@@ -43,7 +43,6 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
-
 
   return (
     <div className="auth-container">
@@ -57,11 +56,7 @@ export default function Login() {
           <p>Bienvenido de vuelta</p>
         </div>
 
-        {error && (
-          <div className="error-message global-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="error-message global-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="form-body">
           <div className="input-group">
@@ -92,17 +87,19 @@ export default function Login() {
             </div>
           </div>
 
-          <button 
-            type="submit" 
-            className="auth-button"
-            disabled={isSubmitting}
-          >
+          <button type="submit" className="auth-button" disabled={isSubmitting}>
             <FiLogIn className="button-icon" />
-            {isSubmitting ? 'Ingresando...' : 'Ingresar'}
+            {isSubmitting ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
 
         <div className="form-footer">
+          <p>
+            ¿Olvidaste tu contraseña?
+            <Link to="/recuperar" className="switch-link">
+              Restablécela aquí
+            </Link>
+          </p>
           <p>
             ¿No tienes cuenta?
             <Link to="/register" className="switch-link">

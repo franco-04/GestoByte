@@ -232,3 +232,18 @@ select.input-field {
   font-size: 0.9rem;
   border-left: 4px solid var(--error);
 }
+.code-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.code-input {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.5rem;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
