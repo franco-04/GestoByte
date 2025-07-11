@@ -3,12 +3,16 @@ import { register, login, getProfile } from '../controllers/authController.js';
 import { createPortfolio, getUsuarios, getPortafoliosByProfesor, eliminarPortafolio, editarPortafolio, getEstudiantesPortafolio, getStudentStats, getStudentPortafolios, getStudentPortfolioDetails   } from '../controllers/portfolioController.js';
 import { authenticate } from '../middlewares/auth.js';
 
+import { sendRecoveryCode, verificarCodigo, resetPassword } from '../controllers/authController.js';
+
 const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', authenticate, getProfile);
-
+router.post('/send-code', sendRecoveryCode);
+router.post('/verificar-codigo', verificarCodigo);
+router.post('/reset-password', resetPassword);
 // Rutas para portafolios
 router.post('/portafolios', authenticate, createPortfolio);
 router.get('/usuarios', authenticate, getUsuarios);

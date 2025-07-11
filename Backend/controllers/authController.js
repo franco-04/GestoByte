@@ -1,6 +1,9 @@
   import pool from '../config/db.js';
   import bcrypt from 'bcryptjs';
   import jwt from 'jsonwebtoken';
+  import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+
 
   const JWT_SECRET = process.env.JWT_SECRET || 'secretouniversitario';
 
@@ -131,3 +134,108 @@
       res.status(500).json({ error: 'Error en el servidor' });
     }
   };
+  export const sendRecoveryCode = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM usuarios WHERE email = ?', 
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Correo no encontrado' });
+    }
+
+    // Generar código de 4 dígitos
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Guardar el código temporalmente (ideal: en DB o caché con expiración)
+    await pool.query(
+      'UPDATE usuarios SET codigo_recuperacion = ?, codigo_expiracion = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE email = ?',
+      [code, email]
+    );
+
+    // Configurar nodemailer (puedes usar Gmail, SendGrid, etc.)
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: '"BlueByte-Recuperacion de contraseña" <no-reply@upt.edu>',
+      to: email,
+      subject: 'Código de recuperación de contraseña', 
+      html: `<p>Tu código de recuperación es: <strong>${code}</strong></p><p>Válido por 10 minutos.</p>`
+    });
+
+    res.json({ success: true, message: 'Código enviado al correo' });
+  } catch (error) {
+    console.error('Error al enviar código:', error);
+    res.status(500).json({ success: false, error: 'Error al enviar código' });
+  }
+};
+export const verificarCodigo = async (req, res) => {
+  const { email, codigo } = req.body;
+
+  if (!email || !codigo) {
+    return res.status(400).json({ success: false, error: 'Faltan datos' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT codigo_recuperacion, codigo_expiracion 
+       FROM usuarios WHERE email = ?`,
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Correo no encontrado' });
+    }
+
+    const usuario = rows[0];
+    const ahora = new Date();
+    const expiracion = new Date(usuario.codigo_expiracion);
+
+    if (usuario.codigo_recuperacion !== codigo) {
+      return res.status(401).json({ success: false, error: 'Código incorrecto' });
+    }
+
+    if (ahora > expiracion) {
+      return res.status(410).json({ success: false, error: 'Código expirado' });
+    }
+
+    res.json({ success: true, message: 'Código válido' });
+  } catch (error) {
+    console.error('Error al verificar código:', error);
+    res.status(500).json({ success: false, error: 'Error en el servidor' });
+  }
+};
+export const resetPassword = async (req, res) => {
+  const { email, nuevaContrasena } = req.body;
+
+  if (!email || !nuevaContrasena) {
+    return res.status(400).json({ success: false, error: 'Faltan datos' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(nuevaContrasena, 10);
+
+    const [result] = await pool.query(
+      `UPDATE usuarios SET password_hash = ?, codigo_recuperacion = NULL, codigo_expiracion = NULL WHERE email = ?`,
+      [hashedPassword, email]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+    res.status(500).json({ success: false, error: 'Error en el servidor' });
+  }
+};

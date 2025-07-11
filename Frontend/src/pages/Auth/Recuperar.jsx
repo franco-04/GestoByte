@@ -1,24 +1,20 @@
-// src/pages/Auth/Recuperar.jsx
 import React, { useState, useRef } from "react";
-import { FiMail } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { FiMail, FiLock } from "react-icons/fi";
+import { Link, useNavigate } from "react-router-dom";
 import recoverImage from "../../assets/inicio.jpg";
 import "./Auth.css";
-import api from "../../api/api"; // Asegúrate de tenerlo apuntando a tu backend
+import api from "../../api/api";
 
 export default function Recuperar() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [step, setStep] = useState(1); // Paso 1: email, paso 2: código
+  const [step, setStep] = useState(1); // 1: email, 2: código, 3: nueva contraseña
   const [code, setCode] = useState(["", "", "", ""]);
-
-  const inputRefs = [
-    useRef(null),
-    useRef(null),
-    useRef(null),
-    useRef(null),
-  ];
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const inputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const navigate = useNavigate();
 
   const handleSendCode = async (e) => {
     e.preventDefault();
@@ -50,6 +46,70 @@ export default function Recuperar() {
     }
   };
 
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+    const recoveryCode = code.join("");
+
+    if (recoveryCode.length !== 4) {
+      setError("Ingresa el código completo de 4 dígitos.");
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/verificar-codigo", {
+        email,
+        codigo: recoveryCode,
+      });
+
+      if (response.data.success) {
+        setMessage("Código verificado. Ingresa tu nueva contraseña.");
+        setStep(3);
+      } else {
+        setError("Código inválido o expirado.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al verificar el código.");
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (!passwordRegex.test(newPassword)) {
+      setError(
+        "La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos."
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/reset-password", {
+        email,
+        nuevaContrasena: newPassword,
+      });
+
+      if (response.data.success) {
+        setMessage("Contraseña restablecida correctamente. Redirigiendo...");
+        setTimeout(() => navigate("/login"), 2500);
+      } else {
+        setError("No se pudo restablecer la contraseña.");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.error || "Error al restablecer la contraseña."
+      );
+    }
+  };
+
   return (
     <div className="auth-container">
       <div className="auth-image">
@@ -60,9 +120,10 @@ export default function Recuperar() {
         <div className="form-header">
           <h2>Recuperar Contraseña</h2>
           <p>
-            {step === 1
-              ? "Ingresa tu correo electrónico para enviar un código de verificación"
-              : "Ingresa el código de 4 dígitos enviado a tu correo"}
+            {step === 1 &&
+              "Ingresa tu correo electrónico para enviar un código de verificación"}
+            {step === 2 && "Ingresa el código de 4 dígitos enviado a tu correo"}
+            {step === 3 && "Ingresa tu nueva contraseña"}
           </p>
         </div>
 
@@ -70,10 +131,16 @@ export default function Recuperar() {
         {message && <div className="info-message global-info">{message}</div>}
 
         <form
-          onSubmit={step === 1 ? handleSendCode : (e) => e.preventDefault()}
+          onSubmit={
+            step === 1
+              ? handleSendCode
+              : step === 2
+              ? handleVerifyCode
+              : handleResetPassword
+          }
           className="form-body"
         >
-          {step === 1 ? (
+          {step === 1 && (
             <div className="input-group">
               <div className="input-container">
                 <FiMail className="input-icon" />
@@ -87,7 +154,9 @@ export default function Recuperar() {
                 />
               </div>
             </div>
-          ) : (
+          )}
+
+          {step === 2 && (
             <div className="input-group code-group">
               {code.map((digit, index) => (
                 <input
@@ -104,14 +173,50 @@ export default function Recuperar() {
             </div>
           )}
 
+          {step === 3 && (
+            <>
+              <div className="input-group">
+                <div className="input-container">
+                  <FiLock className="input-icon" />
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    placeholder="Nueva contraseña"
+                    className={`input-field ${error ? "input-error" : ""}`}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <div className="input-container">
+                  <FiLock className="input-icon" />
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    placeholder="Confirmar contraseña"
+                    className={`input-field ${error ? "input-error" : ""}`}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <button type="submit" className="auth-button">
-            {step === 1 ? "Enviar código" : "Verificar código"}
+            {step === 1
+              ? "Enviar código"
+              : step === 2
+              ? "Verificar código"
+              : "Restablecer contraseña"}
           </button>
         </form>
 
         <div className="form-footer">
           <p>
-            ¿Recordaste tu contraseña?
+            ¿Recordaste tu contraseña?{" "}
             <Link to="/login" className="switch-link">
               Inicia sesión aquí
             </Link>
