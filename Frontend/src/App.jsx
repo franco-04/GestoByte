@@ -9,6 +9,7 @@ import SuperAdminDashboard from "./pages/Superadmin/SuperAdminDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
 // Importar el componente de gestión de portafolios
 import PortfolioManager from "./pages/Admin/PortfolioManager";
+import Recuperar from "./pages/Auth/Recuperar";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/recuperar" element={<Recuperar />} />
 
       {/* Rutas protegidas por rol */}
       <Route
