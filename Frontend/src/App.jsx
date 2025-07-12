@@ -10,6 +10,7 @@ import Unauthorized from "./pages/Unauthorized.jsx";
 // Importar el componente de gestión de portafolios
 import PortfolioManager from "./pages/Admin/PortfolioManager";
 import Recuperar from "./pages/Auth/Recuperar";
+import AccountActivation from "./pages/Auth/AccountActivation.jsx";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/recuperar" element={<Recuperar />} />
+      <Route path="/activar-cuenta/:token" element={<AccountActivation />} />
 
       {/* Rutas protegidas por rol */}
       <Route

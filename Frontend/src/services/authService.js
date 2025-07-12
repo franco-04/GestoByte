@@ -1,13 +1,12 @@
 // src/services/authService.js
-import api from '../api/api';
-import errorHandler from '../utils/errorHandler';
-
+import api from "../api/api";
+import errorHandler from "../utils/errorHandler";
 
 // 🔁 Mapeo de roles de BD a roles de frontend
 const roleMap = {
-  estudiante: 'estudiante',
-  coordinador: 'administrador',
-  administrador: 'superadministrador'
+  estudiante: "estudiante",
+  coordinador: "administrador",
+  administrador: "superadministrador",
 };
 
 const authService = {
@@ -18,10 +17,10 @@ const authService = {
         password: userData.password,
         nombre: userData.firstName,
         apellido: userData.lastName,
-        carrera: userData.career
+        carrera: userData.career,
       };
 
-      const response = await api.post('/auth/register', formattedData);
+      const response = await api.post("/auth/register", formattedData);
       return response.data;
     } catch (error) {
       throw errorHandler(error);
@@ -30,23 +29,23 @@ const authService = {
 
   login: async (credentials) => {
     try {
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post("/auth/login", credentials);
 
       const rawRole = response.data.user.rol.toLowerCase();
-      const mappedRole = roleMap[rawRole] || 'estudiante'; // Valor por defecto
+      const mappedRole = roleMap[rawRole] || "estudiante"; // Valor por defecto
 
       const normalizedUser = {
         ...response.data.user,
-        rol: mappedRole
+        rol: mappedRole,
       };
 
-      localStorage.setItem('authToken', response.data.token);
-      localStorage.setItem('userRole', mappedRole);
-      localStorage.setItem('userData', JSON.stringify(normalizedUser));
+      localStorage.setItem("authToken", response.data.token);
+      localStorage.setItem("userRole", mappedRole);
+      localStorage.setItem("userData", JSON.stringify(normalizedUser));
 
       return {
         ...response.data,
-        user: normalizedUser
+        user: normalizedUser,
       };
     } catch (error) {
       throw errorHandler(error);
@@ -54,18 +53,28 @@ const authService = {
   },
 
   logout: () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userData');
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userData");
   },
 
   getCurrentUser: () => {
-    const userData = localStorage.getItem('userData');
+    const userData = localStorage.getItem("userData");
     return userData ? JSON.parse(userData) : null;
   },
 
+  // ...
   getUserRole: () => {
-    return localStorage.getItem('userRole');
+    return localStorage.getItem("userRole");
+  },
+
+  activarCuenta: async (token) => {
+    try {
+      const response = await api.get(`/auth/activar/${token}`);
+      return response.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
   },
 };
 
