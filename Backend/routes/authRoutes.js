@@ -21,6 +21,16 @@ import {
   getStudentPortfolioDetails
 } from '../controllers/portfolioController.js';
 
+import {
+  getStudentProjects,
+  getEnhancedStudentStats,
+  getStudentPortfoliosWithHierarchy,
+  getStudentAlerts,
+  markAlertAsRead,
+  getProjectDetails,
+  updateProjectProgress
+} from '../controllers/studentController.js';
+
 import { authenticate } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -44,5 +54,13 @@ router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafoli
 router.get('/student/stats', authenticate, getStudentStats);
 router.get('/student/portafolios', authenticate, getStudentPortafolios);
 router.get('/student/portafolios/:id', authenticate, getStudentPortfolioDetails);
+
+router.get('/student/proyectos', authenticate, getStudentProjects);
+router.get('/student/stats-enhanced', authenticate, getEnhancedStudentStats);
+router.get('/student/portafolios-hierarchy', authenticate, getStudentPortfoliosWithHierarchy);
+router.get('/student/alertas', authenticate, getStudentAlerts);
+router.put('/student/alertas/:id_alerta/read', authenticate, markAlertAsRead);
+router.get('/student/proyectos/:id_proyecto', authenticate, getProjectDetails);
+router.put('/student/proyectos/:id_proyecto/progress', authenticate, updateProjectProgress);
 
 export default router;
