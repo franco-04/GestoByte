@@ -11,14 +11,21 @@ import {
 
 import {
   createPortfolio,
-  getUsuarios,
-  getPortafoliosByProfesor,
+  getProfesores,
+  getPortafoliosByCoordinador,
   eliminarPortafolio,
   editarPortafolio,
   getEstudiantesPortafolio,
   getStudentStats,
   getStudentPortafolios,
-  getStudentPortfolioDetails
+  getStudentPortfolioDetails,
+  getProgramasPortafolio,
+  getAsesoresPortafolio,
+  createPrograma,
+  getProyectosPrograma,
+  getEstudiantesPrograma,
+  createProyecto,
+  getEstudiantesProyecto
 } from '../controllers/portfolioController.js';
 
 import {
@@ -46,14 +53,29 @@ router.get('/activar/:token', activarCuenta);
 
 // Rutas de portafolios
 router.post('/portafolios', authenticate, createPortfolio);
-router.get('/usuarios', authenticate, getUsuarios);
-router.get('/mis-portafolios', authenticate, getPortafoliosByProfesor);
+router.get('/profesores', authenticate, getProfesores);
+router.get('/mis-portafolios', authenticate, getPortafoliosByCoordinador);
+
 router.put('/:id/eliminar-portafolio', authenticate, eliminarPortafolio);
 router.put('/:id', authenticate, editarPortafolio);
 router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolio);
 router.get('/student/stats', authenticate, getStudentStats);
 router.get('/student/portafolios', authenticate, getStudentPortafolios);
 router.get('/student/portafolios/:id', authenticate, getStudentPortfolioDetails);
+
+
+//Rutas de programas con los portafolios
+router.get('/portafolios/:id_portafolio/programas', authenticate, getProgramasPortafolio);
+router.get('/portafolios/:id_portafolio/asesores', authenticate, getAsesoresPortafolio);
+router.post('/portafolios/:id_portafolio/programas', authenticate, createPrograma);
+
+
+// Rutas de proyectos con los programas
+router.get('/programas/:id_programa/proyectos', authenticate, getProyectosPrograma);
+router.get('/programas/:id_programa/estudiantes', authenticate, getEstudiantesPrograma);
+router.post('/programas/:id_programa/proyectos', authenticate, createProyecto); 
+router.get('/programas/:id_programa/proyectos/:id_proyecto/estudiantes', authenticate, getEstudiantesProyecto); 
+
 
 router.get('/student/proyectos', authenticate, getStudentProjects);
 router.get('/student/stats-enhanced', authenticate, getEnhancedStudentStats);

@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react";
 import api from "../../api/api";
-import "../Admin/Admin.css";
+import "../Superadmin/Superadmin.css";
 
 export default function PortfolioManager() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [carrera, setCarrera] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
   const [estudiantes, setEstudiantes] = useState([]);
   const [seleccionados, setSeleccionados] = useState([]);
+  const [asesores, setAsesores] = useState([]);
+  const [asesoresSeleccionados, setAsesoresSeleccionados] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -20,19 +20,13 @@ export default function PortfolioManager() {
   ]);
   const [misPortafolios, setMisPortafolios] = useState([]);
 
- 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState({
     id_portafolio: null,
     nombre: "",
     descripcion: "",
-    fecha_inicio: "",
-    fecha_fin: "",
     carrera: "",
-    estudiantes_actuales: [],
-    estudiantes_seleccionados: []
   });
-  const [estudiantesDisponibles, setEstudiantesDisponibles] = useState([]);
 
   useEffect(() => {
     const fetchEstudiantes = async () => {
@@ -43,7 +37,16 @@ export default function PortfolioManager() {
         setEstudiantes([]);
       }
     };
+    const fetchAsesores = async () => {
+      try {
+        const res = await api.get("/auth/profesores");
+        setAsesores(res.data);
+      } catch (error) {
+        setAsesores([]);
+      }
+    };
     fetchEstudiantes();
+    fetchAsesores();
     fetchMisPortafolios();
   }, []);
 
@@ -55,9 +58,6 @@ export default function PortfolioManager() {
       setMisPortafolios([]);
     }
   };
-
-
-  const estudiantesFiltrados = estudiantes.filter((e) => e.carrera === carrera);
 
   const createPortafolio = async (data) => {
     try {
@@ -79,19 +79,15 @@ export default function PortfolioManager() {
         nombre,
         descripcion,
         carrera,
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
         activo: 1,
-        estudiantes: seleccionados,
+        asesores: asesoresSeleccionados,
       };
       await createPortafolio(data);
       setSuccess("Portafolio creado correctamente");
       setNombre("");
       setDescripcion("");
       setCarrera("");
-      setFechaInicio("");
-      setFechaFin("");
-      setSeleccionados([]);
+      setAsesoresSeleccionados([]);
       fetchMisPortafolios();
     } catch (error) {
       setError(error);
@@ -117,30 +113,13 @@ export default function PortfolioManager() {
   };
 
   const abrirModalEdicion = async (p) => {
-    try {
-
-      const res = await api.get(`/auth/portafolios/${p.id_portafolio}/estudiantes`);
-      const { carrera: carreraPortafolio, estudiantes: estudiantesActuales } = res.data;
-      
- 
-      const estudiantesDeCarrera = estudiantes.filter(e => e.carrera === carreraPortafolio);
-      
-      setEditData({
-        id_portafolio: p.id_portafolio,
-        nombre: p.nombre,
-        descripcion: p.descripcion,
-        fecha_inicio: p.fecha_inicio?.slice(0, 10),
-        fecha_fin: p.fecha_fin?.slice(0, 10),
-        carrera: carreraPortafolio,
-        estudiantes_actuales: estudiantesActuales,
-        estudiantes_seleccionados: estudiantesActuales.map(e => e.id_usuario.toString())
-      });
-      
-      setEstudiantesDisponibles(estudiantesDeCarrera);
-      setShowEditModal(true);
-    } catch (error) {
-      setError("Error al cargar datos del portafolio");
-    }
+    setEditData({
+      id_portafolio: p.id_portafolio,
+      nombre: p.nombre,
+      descripcion: p.descripcion,
+      carrera: p.carrera,
+    });
+    setShowEditModal(true);
   };
 
   const editarPortafolio = async (e) => {
@@ -149,9 +128,6 @@ export default function PortfolioManager() {
       await api.put(`/auth/${editData.id_portafolio}`, {
         nombre: editData.nombre,
         descripcion: editData.descripcion,
-        fecha_inicio: editData.fecha_inicio,
-        fecha_fin: editData.fecha_fin,
-        estudiantes: editData.estudiantes_seleccionados
       });
       setSuccess("Portafolio actualizado correctamente");
       setShowEditModal(false);
@@ -237,62 +213,36 @@ export default function PortfolioManager() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Fecha de inicio</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Fecha de fin</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  required
-                />
-              </div>
-
               <div className="form-group form-group-full">
-                <label className="form-label">
-                  Estudiantes{" "}
-                  {carrera && `(${estudiantesFiltrados.length} disponibles)`}
-                </label>
-                {!carrera ? (
-                  <div className="form-help-text">
-                    Seleccione una carrera para ver los estudiantes disponibles
-                  </div>
-                ) : estudiantesFiltrados.length === 0 ? (
-                  <div className="form-help-text">
-                    No hay estudiantes disponibles para esta carrera
-                  </div>
-                ) : (
-                  <div className="students-selector">
-                    <select
-                      multiple
-                      className="form-select form-select-multiple"
-                      value={seleccionados}
-                      onChange={(e) =>
-                        setSeleccionados(
-                          Array.from(e.target.selectedOptions, (o) => o.value)
-                        )
-                      }
-                      required
-                    >
-                      {estudiantesFiltrados.map((e) => (
-                        <option key={e.id_usuario} value={e.id_usuario}>
-                          {e.nombre} {e.apellido}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <label className="form-label">Asesores</label>
+                <select
+                  multiple
+                  className="form-select"
+                  value={asesoresSeleccionados}
+                  onChange={(e) =>
+                    setAsesoresSeleccionados(
+                      Array.from(
+                        e.target.selectedOptions,
+                        (option) => option.value
+                      )
+                    )
+                  }
+                  required
+                  disabled={!carrera}
+                >
+                  {asesores
+                    .filter((a) => a.carrera === carrera)
+                    .map((a) => (
+                      <option key={a.id_usuario} value={a.id_usuario}>
+                        {a.nombre} {a.apellido}
+                      </option>
+                    ))}
+                </select>
+                <small>
+                  {carrera
+                    ? "Puedes seleccionar uno o varios asesores"
+                    : "Selecciona primero una carrera"}
+                </small>
               </div>
             </div>
 
@@ -304,9 +254,7 @@ export default function PortfolioManager() {
                   setNombre("");
                   setDescripcion("");
                   setCarrera("");
-                  setFechaInicio("");
-                  setFechaFin("");
-                  setSeleccionados([]);
+                  setAsesoresSeleccionados([]);
                   clearMessages();
                 }}
               >
@@ -323,7 +271,6 @@ export default function PortfolioManager() {
           </form>
         </div>
 
-
         <div className="admin-card" style={{ marginTop: "2rem" }}>
           <div className="card-header">
             <h3>Mis Portafolios</h3>
@@ -338,16 +285,7 @@ export default function PortfolioManager() {
                     <span className="portfolio-name">{p.nombre}</span>
                     <span className="portfolio-career">{p.carrera}</span>
                   </div>
-                  <div className="portfolio-card-body">
-                    <div>
-                      <span className="portfolio-label">Inicio:</span>{" "}
-                      <span>{p.fecha_inicio?.slice(0, 10)}</span>
-                    </div>
-                    <div>
-                      <span className="portfolio-label">Fin:</span>{" "}
-                      <span>{p.fecha_fin?.slice(0, 10)}</span>
-                    </div>
-                  </div>
+                  <div className="portfolio-card-body"></div>
                   <div className="portfolio-card-actions">
                     <button
                       className="btn btn-primary"
@@ -382,7 +320,9 @@ export default function PortfolioManager() {
                 <input
                   className="form-input"
                   value={editData.nombre}
-                  onChange={e => setEditData({ ...editData, nombre: e.target.value })}
+                  onChange={(e) =>
+                    setEditData({ ...editData, nombre: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -391,61 +331,18 @@ export default function PortfolioManager() {
                 <textarea
                   className="form-textarea"
                   value={editData.descripcion}
-                  onChange={e => setEditData({ ...editData, descripcion: e.target.value })}
+                  onChange={(e) =>
+                    setEditData({ ...editData, descripcion: e.target.value })
+                  }
                   required
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Fecha de inicio</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={editData.fecha_inicio}
-                  onChange={e => setEditData({ ...editData, fecha_inicio: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Fecha de fin</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={editData.fecha_fin}
-                  onChange={e => setEditData({ ...editData, fecha_fin: e.target.value })}
-                  required
-                />
-              </div>
-              
-
-              <div className="form-group">
-                <label className="form-label">
-                  Estudiantes de {editData.carrera} ({estudiantesDisponibles.length} disponibles)
-                </label>
-                <div className="students-selector">
-                  <select
-                    multiple
-                    className="form-select form-select-multiple"
-                    value={editData.estudiantes_seleccionados}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      estudiantes_seleccionados: Array.from(e.target.selectedOptions, (o) => o.value)
-                    })}
-                    style={{ minHeight: '120px' }}
-                  >
-                    {estudiantesDisponibles.map((e) => (
-                      <option key={e.id_usuario} value={e.id_usuario}>
-                        {e.nombre} {e.apellido}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="form-help-text">
-                    Mantén presionado Ctrl (o Cmd en Mac) para seleccionar múltiples estudiantes
-                  </div>
-                </div>
-              </div>
-
               <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowEditModal(false)}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowEditModal(false)}
+                >
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">

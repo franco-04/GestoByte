@@ -8,7 +8,9 @@ import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "./pages/Superadmin/SuperAdminDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
 // Importar el componente de gestión de portafolios
-import PortfolioManager from "./pages/Admin/PortfolioManager";
+import PortfolioManager from "./pages/Superadmin/PortfolioManager";
+import ProgramasManager from "./pages/Superadmin/ProgramasManager.jsx";
+
 import Recuperar from "./pages/Auth/Recuperar";
 import AccountActivation from "./pages/Auth/AccountActivation.jsx";
 
@@ -58,6 +60,16 @@ function App() {
           </PrivateRoute>
         }
       />
+
+      <Route
+        path="/admin/programas"
+        element={
+          <PrivateRoute allowedRoles={["administrador"]}>
+            <ProgramasManager />
+          </PrivateRoute>
+        }
+      />
+      
  
     </Routes>
   );

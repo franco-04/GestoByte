@@ -7,7 +7,7 @@ import {
   AiFillSetting
 } from 'react-icons/ai';
 import authService from '../../services/authService';
-import PortfolioManager from './PortfolioManager';
+// import PortfolioManager from './PortfolioManager';
 import '../Admin/Admin.css';
 import logo from "../../assets/log.png";
 
@@ -80,7 +80,12 @@ export default function AdminDashboard() {
             </div>
         )}
 
-        {vista === 'portafolios' && <PortfolioManager />}
+        {vista === 'portafolios' &&  (
+          <div className="coming-soon">
+            <h1>Gestion pendiente</h1>
+            <p>Esta sección estará disponible próximamente</p>
+          </div>
+        )}
 
         {vista === 'estudiantes' && (
           <div className="coming-soon">

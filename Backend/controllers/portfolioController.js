@@ -3,68 +3,43 @@ import pool from "../config/db.js";
 export const createPortfolio = async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    const {
-      nombre,
-      descripcion,
-      carrera,
-      fecha_inicio,
-      fecha_fin,
-      activo,
-      estudiantes,
-    } = req.body;
-
+    const { nombre, descripcion, carrera, activo, asesores } = req.body;
     const id_coordinador = req.user.id;
     const fecha_creacion = new Date();
 
     await connection.beginTransaction();
 
     const [result] = await connection.query(
-      "INSERT INTO portafolios (nombre, descripcion, carrera, id_coordinador, fecha_inicio, fecha_fin, activo, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        nombre,
-        descripcion,
-        carrera,
-        id_coordinador,
-        fecha_inicio,
-        fecha_fin,
-        activo,
-        fecha_creacion,
-      ]
+      "INSERT INTO portafolios (nombre, descripcion, carrera, id_coordinador, activo, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)",
+      [nombre, descripcion, carrera, id_coordinador, activo, fecha_creacion]
     );
 
     const id_portafolio = result.insertId;
 
-
-    if (Array.isArray(estudiantes) && estudiantes.length > 0) {
-      const values = estudiantes.map((id_usuario) => [
-        id_portafolio,
-        id_usuario,
-      ]);
+    // Insertar asesores seleccionados en portafolio_profesores
+    if (Array.isArray(asesores) && asesores.length > 0) {
+      const values = asesores.map(id_asesor => [id_portafolio, id_asesor]);
       await connection.query(
-        "INSERT INTO portafolio_alumnos (id_portafolio, id_usuario) VALUES ?",
+        "INSERT INTO portafolio_profesores (id_portafolio, id_asesores) VALUES ?",
         [values]
       );
     }
 
     await connection.commit();
 
-    res
-      .status(201)
-      .json({ message: "Portafolio creado y alumnos asignados correctamente" });
+    res.status(201).json({ message: "Portafolio creado correctamente" });
   } catch (error) {
     await connection.rollback();
-    res
-      .status(500)
-      .json({ error: "Error al crear portafolio o asignar alumnos" });
+    res.status(500).json({ error: "Error al crear portafolio" });
   } finally {
     connection.release();
   }
 };
 
-export const getUsuarios = async (req, res) => {
+export const getProfesores = async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM usuarios WHERE rol = ?", [
-      "Estudiante",
+      "Asesor",
     ]);
     res.json(rows);
   } catch (error) {
@@ -72,7 +47,7 @@ export const getUsuarios = async (req, res) => {
   }
 };
 
-export const getPortafoliosByProfesor = async (req, res) => {
+export const getPortafoliosByCoordinador = async (req, res) => {
   try {
     const id_coordinador = req.user.id;
     const [rows] = await pool.query(
@@ -91,7 +66,7 @@ export const eliminarPortafolio = async (req, res) => {
   try {
     const id_portafolio = req.params.id;
     const id_coordinador = req.user.id;
-    
+
     const [result] = await pool.query(
       "UPDATE portafolios SET activo = 0 WHERE id_portafolio = ? AND id_coordinador = ?",
       [id_portafolio, id_coordinador]
@@ -114,7 +89,6 @@ export const getEstudiantesPortafolio = async (req, res) => {
     const id_portafolio = req.params.id;
     const id_coordinador = req.user.id;
 
-
     const [portafolio] = await pool.query(
       "SELECT carrera FROM portafolios WHERE id_portafolio = ? AND id_coordinador = ? AND activo = 1",
       [id_portafolio, id_coordinador]
@@ -123,7 +97,6 @@ export const getEstudiantesPortafolio = async (req, res) => {
     if (portafolio.length === 0) {
       return res.status(404).json({ error: "Portafolio no encontrado" });
     }
-
 
     const [estudiantesActuales] = await pool.query(
       `SELECT u.id_usuario, u.nombre, u.apellido, u.carrera 
@@ -135,10 +108,12 @@ export const getEstudiantesPortafolio = async (req, res) => {
 
     res.json({
       carrera: portafolio[0].carrera,
-      estudiantes: estudiantesActuales
+      estudiantes: estudiantesActuales,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error al obtener estudiantes del portafolio" });
+    res
+      .status(500)
+      .json({ error: "Error al obtener estudiantes del portafolio" });
   }
 };
 
@@ -148,41 +123,22 @@ export const editarPortafolio = async (req, res) => {
     const id_portafolio = req.params.id;
     const id_coordinador = req.user.id;
 
-    const { nombre, descripcion, fecha_inicio, fecha_fin, estudiantes } = req.body;
+    const { nombre, descripcion } = req.body;
 
     await connection.beginTransaction();
 
     const [result] = await connection.query(
       `UPDATE portafolios 
-       SET nombre = ?, descripcion = ?, fecha_inicio = ?, fecha_fin = ?
+       SET nombre = ?, descripcion = ?
        WHERE id_portafolio = ? AND id_coordinador = ? AND activo = 1`,
-      [nombre, descripcion, fecha_inicio, fecha_fin, id_portafolio, id_coordinador]
+      [nombre, descripcion, id_portafolio, id_coordinador]
     );
 
     if (result.affectedRows === 0) {
       await connection.rollback();
-      return res.status(404).json({ error: "Portafolio no encontrado o no autorizado" });
-    }
-
-
-    if (Array.isArray(estudiantes)) {
-
-      await connection.query(
-        "DELETE FROM portafolio_alumnos WHERE id_portafolio = ?",
-        [id_portafolio]
-      );
-
-  
-      if (estudiantes.length > 0) {
-        const values = estudiantes.map((id_usuario) => [
-          id_portafolio,
-          id_usuario,
-        ]);
-        await connection.query(
-          "INSERT INTO portafolio_alumnos (id_portafolio, id_usuario) VALUES ?",
-          [values]
-        );
-      }
+      return res
+        .status(404)
+        .json({ error: "Portafolio no encontrado o no autorizado" });
     }
 
     await connection.commit();
@@ -198,7 +154,6 @@ export const editarPortafolio = async (req, res) => {
 export const getStudentStats = async (req, res) => {
   try {
     const id_usuario = req.user.id;
-
 
     const [totalPortafolios] = await pool.query(
       `SELECT COUNT(*) as total 
@@ -216,7 +171,6 @@ export const getStudentStats = async (req, res) => {
       [id_usuario]
     );
 
-
     const [proximasEntregas] = await pool.query(
       `SELECT COUNT(*) as proximas 
        FROM portafolio_alumnos pa 
@@ -229,11 +183,13 @@ export const getStudentStats = async (req, res) => {
     res.json({
       totalPortafolios: totalPortafolios[0].total,
       portafoliosActivos: portafoliosActivos[0].activos,
-      proximasEntregas: proximasEntregas[0].proximas
+      proximasEntregas: proximasEntregas[0].proximas,
     });
   } catch (error) {
-    console.error('Error al obtener estadísticas del estudiante:', error);
-    res.status(500).json({ error: "Error al obtener estadísticas del estudiante" });
+    console.error("Error al obtener estadísticas del estudiante:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener estadísticas del estudiante" });
   }
 };
 
@@ -263,8 +219,10 @@ export const getStudentPortafolios = async (req, res) => {
 
     res.json(portafolios);
   } catch (error) {
-    console.error('Error al obtener portafolios del estudiante:', error);
-    res.status(500).json({ error: "Error al obtener portafolios del estudiante" });
+    console.error("Error al obtener portafolios del estudiante:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener portafolios del estudiante" });
   }
 };
 
@@ -282,9 +240,10 @@ export const getStudentPortfolioDetails = async (req, res) => {
     );
 
     if (access.length === 0) {
-      return res.status(403).json({ error: "No tienes acceso a este portafolio" });
+      return res
+        .status(403)
+        .json({ error: "No tienes acceso a este portafolio" });
     }
-
 
     const [portafolio] = await pool.query(
       `SELECT 
@@ -319,10 +278,158 @@ export const getStudentPortfolioDetails = async (req, res) => {
 
     res.json({
       portafolio: portafolio[0],
-      compañeros: compañeros
+      compañeros: compañeros,
     });
   } catch (error) {
-    console.error('Error al obtener detalles del portafolio:', error);
+    console.error("Error al obtener detalles del portafolio:", error);
     res.status(500).json({ error: "Error al obtener detalles del portafolio" });
+  }
+};
+
+
+// Funciones del controlador de proyectos del estudiante
+export const getProgramasPortafolio = async (req, res) => {
+  const { id_portafolio } = req.params;
+  try {
+    const [rows] = await pool.query(
+      "SELECT id_programa, nombre, descripcion FROM programas WHERE id_portafolio = ?",
+      [id_portafolio]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener programas" });
+  }
+};
+
+export const getAsesoresPortafolio = async (req, res) => {
+  const { id_portafolio } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT pp.id_asesores AS id_usuario, u.nombre, u.apellido, u.email, u.carrera
+       FROM portafolio_profesores pp
+       INNER JOIN usuarios u ON pp.id_asesores = u.id_usuario
+       WHERE pp.id_portafolio = ?`,
+      [id_portafolio]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener asesores" });
+  }
+};
+
+export const createPrograma = async (req, res) => {
+  const { id_portafolio } = req.params;
+  const { nombre, descripcion, asesores } = req.body;
+
+  try {
+    // Crear el programa
+    const [result] = await pool.query(
+      "INSERT INTO programas (id_portafolio, nombre, descripcion) VALUES (?, ?, ?)",
+      [id_portafolio, nombre, descripcion]
+    );
+
+    const id_programa = result.insertId;
+
+    // Insertar asesores en la tabla programa_asesores
+    if (Array.isArray(asesores) && asesores.length > 0) {
+      const values = asesores.map(id_asesor => [id_programa, id_asesor]);
+      await pool.query(
+        "INSERT INTO programa_asesores (id_programa, id_asesor) VALUES ?",
+        [values]
+      );
+    }
+
+    res.status(201).json({ message: "Programa creado correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al crear programa" });
+  }
+};
+
+//Funciones del controlador de proyectos del estudiante
+export const getProyectosPrograma = async (req, res) => {
+  const { id_programa } = req.params;
+  try {
+    const [rows] = await pool.query(
+      "SELECT id_proyecto, nombre, descripcion, fecha_creacion, id_lider FROM proyectos WHERE id_programa = ?",
+      [id_programa]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener proyectos" });
+  }
+};
+
+export const getEstudiantesPrograma = async (req, res) => {
+  const { id_programa } = req.params;
+  try {
+    // Obtener la carrera del portafolio al que pertenece el programa
+    const [portafolio] = await pool.query(
+      `SELECT p.carrera
+       FROM programas pr
+       INNER JOIN portafolios p ON pr.id_portafolio = p.id_portafolio
+       WHERE pr.id_programa = ?`,
+      [id_programa]
+    );
+    if (portafolio.length === 0) {
+      return res.status(404).json({ error: "Programa o portafolio no encontrado" });
+    }
+    const carrera = portafolio[0].carrera;
+    // Traer estudiantes de esa carrera
+    const [estudiantes] = await pool.query(
+      "SELECT id_usuario, nombre, apellido FROM usuarios WHERE rol = 'Estudiante' AND carrera = ?",
+      [carrera]
+    );
+    res.json(estudiantes);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener estudiantes" });
+  }
+};
+
+export const createProyecto = async (req, res) => {
+  const { id_programa } = req.params;
+  const { nombre, descripcion, estudiantes, lider } = req.body;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Insertar el proyecto
+    const [result] = await connection.query(
+      "INSERT INTO proyectos (id_programa, nombre, descripcion, fecha_creacion, id_lider) VALUES (?, ?, ?, NOW(), ?)",
+      [id_programa, nombre, descripcion, lider]
+    );
+    const id_proyecto = result.insertId;
+
+    // Insertar estudiantes en la tabla proyecto_estudiantes
+    if (Array.isArray(estudiantes) && estudiantes.length > 0) {
+      const values = estudiantes.map(id_estudiante => [id_proyecto, id_estudiante]);
+      await connection.query(
+        "INSERT INTO proyecto_estudiantes (id_proyecto, id_estudiante) VALUES ?",
+        [values]
+      );
+    }
+
+    await connection.commit();
+    res.status(201).json({ message: "Proyecto creado correctamente" });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ error: "Error al crear proyecto" });
+  } finally {
+    connection.release();
+  }
+};
+
+export const getEstudiantesProyecto = async (req, res) => {
+  const { id_proyecto } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id_usuario, u.nombre, u.apellido
+       FROM proyecto_estudiantes pe
+       INNER JOIN usuarios u ON pe.id_estudiante = u.id_usuario
+       WHERE pe.id_proyecto = ?`,
+      [id_proyecto]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener estudiantes del proyecto" });
   }
 };

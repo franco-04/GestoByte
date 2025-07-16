@@ -134,6 +134,7 @@ export const getProfile = async (req, res) => {
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
+
 export const sendRecoveryCode = async (req, res) => {
   const { email } = req.body;
 
