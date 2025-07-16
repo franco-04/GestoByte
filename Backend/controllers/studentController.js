@@ -11,17 +11,17 @@ export const getStudentProjects = async (req, res) => {
         p.titulo,
         p.descripcion,
         p.fecha_inicio,
-        p.fecha_fin,
+        p.fecha_fin_real AS fecha_fin,
         p.estado,
-        p.progreso,
+        p.progreso_porcentaje AS progreso,
         p.fecha_actualizacion,
         prog.nombre as programa_nombre,
-        port.nombre as portafolio_nombre,
-        port.carrera
+        pf.nombre as portafolio_nombre,
+        pf.carrera
        FROM proyectos p
        INNER JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
-       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       INNER JOIN portafolios pf ON prog.id_portafolio = pf.id_portafolio
        WHERE pe.id_usuario = ? AND p.activo = 1
        ORDER BY p.fecha_actualizacion DESC`,
       [id_usuario]
@@ -197,7 +197,7 @@ export const getStudentAlerts = async (req, res) => {
         a.tipo,
         a.fecha_creacion,
         a.activa,
-        p.titulo as proyecto_titulo,
+        p.nombre as proyecto_titulo,
         p.id_proyecto
        FROM alertas_estudiante a
        LEFT JOIN proyectos p ON a.id_proyecto = p.id_proyecto

@@ -1,98 +1,93 @@
 import React, { useState, useEffect } from 'react';
 import {
   AiFillDashboard,
-  AiFillFolder,
   AiFillProject,
   AiOutlineUser,
   AiOutlineBell,
-  AiOutlineSearch,
+  AiOutlineFileText,
+  AiOutlineArrowLeft,
+  AiOutlineTeam,
+  AiOutlineTrophy,
   AiOutlineCalendar,
   AiOutlineFlag,
-  AiOutlineClockCircle,
-  AiOutlineCheckCircle,
-  AiOutlineExclamationCircle,
-  AiOutlineWarning
+  AiOutlineClockCircle
 } from 'react-icons/ai';
 import authService from '../../services/authService';
 import api from '../../api/api';
-import '../Admin/Admin.css';
+import EvidenceManager from '../../components/EvidenceManager';
+import KanbanBoard from '../../components/KanbanBoard';
+import './Estudent.css';
+import './evidence_styles.css';
 import logo from "../../assets/log.png";
 
 export default function StudentDashboard() {
   const user = authService.getCurrentUser();
-  const [vista, setVista] = useState('bienvenida');
+  const [vista, setVista] = useState('dashboard');
   
+  // Estados para el dashboard
   const [stats, setStats] = useState({
-    totalPortafolios: 0,
-    portafoliosActivos: 0,
-    proximasEntregas: 0,
     totalProyectos: 0,
-    proyectosEnProceso: 0,
-    proyectosCompletados: 0,
+    actividadesTotales: 0,
+    actividadesCompletadas: 0,
+    totalEvidencias: 0,
+    evidenciasAprobadas: 0,
+    evidenciasPendientes: 0,
     alertasActivas: 0
   });
   
-
-  const [portafolios, setPortafolios] = useState([]);
-  const [proyectos, setProyectos] = useState([]);
+  // Estados para datos
+  const [misProyectos, setMisProyectos] = useState([]);
   const [alertas, setAlertas] = useState([]);
+  const [evidenceStats, setEvidenceStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
-  const [selectedProgram, setSelectedProgram] = useState(null);
-  const [breadcrumb, setBreadcrumb] = useState([]);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("todos");
+  const [success, setSuccess] = useState("");
+  
+  // Estados para navegación
+  const [selectedProject, setSelectedProject] = useState(null);
 
   useEffect(() => {
-    fetchStudentStats();
+    fetchMisProyectos();
     fetchAlertas();
+    fetchEvidenceStats();
   }, []);
 
-  useEffect(() => {
-    if (vista === 'portafolios') {
-      fetchPortafolios();
-    } else if (vista === 'proyectos') {
-      fetchProyectos();
-    }
-  }, [vista]);
-
-  const fetchStudentStats = async () => {
-    try {
-      const res = await api.get("/auth/student/stats");
-      setStats(res.data);
-    } catch (error) {
-      console.error("Error al obtener estadísticas:", error);
-      setError("Error al cargar estadísticas");
-    }
-  };
-
-  const fetchPortafolios = async () => {
+  const fetchMisProyectos = async () => {
     setLoading(true);
-    setError("");
     try {
-      const res = await api.get("/auth/student/portafolios");
-      setPortafolios(res.data);
+      const res = await api.get("/auth/student/my-projects");
+      setMisProyectos(res.data);
+      
+      // Calcular estadísticas
+      const totalActividades = res.data.reduce((sum, p) => sum + (p.total_actividades || 0), 0);
+      const actividadesCompletadas = res.data.reduce((sum, p) => sum + (p.actividades_completadas || 0), 0);
+      
+      setStats(prev => ({
+        ...prev,
+        totalProyectos: res.data.length,
+        actividadesTotales: totalActividades,
+        actividadesCompletadas: actividadesCompletadas
+      }));
     } catch (error) {
-      console.error("Error al obtener portafolios:", error);
-      setError("Error al cargar portafolios");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProyectos = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await api.get("/auth/student/proyectos");
-      setProyectos(res.data);
-    } catch (error) {
-      console.error("Error al obtener proyectos:", error);
+      console.error("Error al obtener mis proyectos:", error);
       setError("Error al cargar proyectos");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEvidenceStats = async () => {
+    try {
+      const res = await api.get("/auth/student/evidencias/stats");
+      setEvidenceStats(res.data);
+      setStats(prev => ({
+        ...prev,
+        totalEvidencias: res.data.estadisticas.total_evidencias,
+        evidenciasAprobadas: res.data.estadisticas.aprobadas,
+        evidenciasPendientes: res.data.estadisticas.pendientes
+      }));
+    } catch (error) {
+      console.error("Error al obtener estadísticas de evidencias:", error);
     }
   };
 
@@ -100,6 +95,10 @@ export default function StudentDashboard() {
     try {
       const res = await api.get("/auth/student/alertas");
       setAlertas(res.data);
+      setStats(prev => ({
+        ...prev,
+        alertasActivas: res.data.length
+      }));
     } catch (error) {
       console.error("Error al obtener alertas:", error);
     }
@@ -110,71 +109,27 @@ export default function StudentDashboard() {
     return new Date(dateString).toLocaleDateString('es-ES');
   };
 
-  const getStatusColor = (estado) => {
-    switch (estado?.toLowerCase()) {
-      case 'borrador': return 'secondary';
-      case 'revision': return 'warning';
-      case 'observaciones': return 'error';
-      case 'pre-aprobado': return 'info';
-      case 'aprobado final': return 'success';
-      default: return 'secondary';
-    }
+  const getRoleIcon = (rol) => {
+    return rol === 'lider' ? <AiOutlineTrophy /> : <AiOutlineTeam />;
   };
 
-  const getStatusIcon = (estado) => {
-    switch (estado?.toLowerCase()) {
-      case 'borrador': return <AiOutlineClockCircle />;
-      case 'revision': return <AiOutlineExclamationCircle />;
-      case 'observaciones': return <AiOutlineWarning />;
-      case 'pre-aprobado': return <AiOutlineFlag />;
-      case 'aprobado final': return <AiOutlineCheckCircle />;
-      default: return <AiOutlineClockCircle />;
-    }
+  const getRoleColor = (rol) => {
+    return rol === 'lider' ? '#f59e0b' : '#3b82f6';
   };
 
-  const handlePortfolioClick = (portfolio) => {
-    setSelectedPortfolio(portfolio);
-    setBreadcrumb([
-      { name: 'Portafolios', action: () => { setSelectedPortfolio(null); setSelectedProgram(null); } },
-      { name: portfolio.nombre, action: null }
-    ]);
+  const handleProjectClick = (project) => {
+    setSelectedProject(project);
+    setVista('kanban');
   };
 
-  const handleProgramClick = (program) => {
-    setSelectedProgram(program);
-    setBreadcrumb([
-      { name: 'Portafolios', action: () => { setSelectedPortfolio(null); setSelectedProgram(null); } },
-      { name: selectedPortfolio.nombre, action: () => setSelectedProgram(null) },
-      { name: program.nombre, action: null }
-    ]);
+  const handleBackToProjects = () => {
+    setSelectedProject(null);
+    setVista('proyectos');
   };
 
-  const filteredProyectos = proyectos.filter(proyecto => {
-    const matchesSearch = proyecto.titulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         proyecto.descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === "todos" || proyecto.estado?.toLowerCase() === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
-
-  const renderBreadcrumb = () => {
-    if (breadcrumb.length === 0) return null;
-    
-    return (
-      <div className="breadcrumb">
-        {breadcrumb.map((item, index) => (
-          <span key={index} className="breadcrumb-item">
-            {item.action ? (
-              <button onClick={item.action} className="breadcrumb-link">
-                {item.name}
-              </button>
-            ) : (
-              <span className="breadcrumb-current">{item.name}</span>
-            )}
-            {index < breadcrumb.length - 1 && <span className="breadcrumb-separator"> / </span>}
-          </span>
-        ))}
-      </div>
-    );
+  const clearMessages = () => {
+    setError("");
+    setSuccess("");
   };
 
   return (
@@ -182,36 +137,56 @@ export default function StudentDashboard() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <img src={logo} alt="Logo" className="sidebar-logo" />
-          <h2>Panel de Estudiantes</h2>
+          <h2>Panel Estudiante</h2>
         </div>
         <nav className="sidebar-nav">
           <button
-            className={`sidebar-button${vista === 'bienvenida' ? ' active' : ''}`}
-            onClick={() => setVista('bienvenida')}
+            className={`sidebar-button${vista === 'dashboard' ? ' active' : ''}`}
+            onClick={() => {
+              setVista('dashboard');
+              setSelectedProject(null);
+              clearMessages();
+            }}
           >
             <AiFillDashboard className="sidebar-icon" /> Dashboard
           </button>
           <button
-            className={`sidebar-button${vista === 'portafolios' ? ' active' : ''}`}
-            onClick={() => setVista('portafolios')}
-          >
-            <AiFillFolder className="sidebar-icon" /> Mis Portafolios
-          </button>
-          <button
-            className={`sidebar-button${vista === 'proyectos' ? ' active' : ''}`}
-            onClick={() => setVista('proyectos')}
+            className={`sidebar-button${vista === 'proyectos' || vista === 'kanban' ? ' active' : ''}`}
+            onClick={() => {
+              setVista('proyectos');
+              setSelectedProject(null);
+              clearMessages();
+            }}
           >
             <AiFillProject className="sidebar-icon" /> Mis Proyectos
           </button>
           <button
+            className={`sidebar-button${vista === 'evidencias' ? ' active' : ''}`}
+            onClick={() => {
+              setVista('evidencias');
+              setSelectedProject(null);
+              clearMessages();
+            }}
+          >
+            <AiOutlineFileText className="sidebar-icon" /> Mis Evidencias
+          </button>
+          <button
             className={`sidebar-button${vista === 'perfil' ? ' active' : ''}`}
-            onClick={() => setVista('perfil')}
+            onClick={() => {
+              setVista('perfil');
+              setSelectedProject(null);
+              clearMessages();
+            }}
           >
             <AiOutlineUser className="sidebar-icon" /> Mi Perfil
           </button>
           <button
             className={`sidebar-button${vista === 'alertas' ? ' active' : ''}`}
-            onClick={() => setVista('alertas')}
+            onClick={() => {
+              setVista('alertas');
+              setSelectedProject(null);
+              clearMessages();
+            }}
           >
             <AiOutlineBell className="sidebar-icon" /> 
             Alertas 
@@ -221,12 +196,12 @@ export default function StudentDashboard() {
       </aside>
 
       <main className="admin-main">
-       
-        {vista === 'bienvenida' && (
+        {/* Dashboard Principal */}
+        {vista === 'dashboard' && (
           <div className="dashboard-content">
             <div className="dashboard-header">
               <div>
-                <h1>Panel de Control</h1>
+                <h1>Dashboard</h1>
                 <p className="dashboard-subtitle">
                   Bienvenido, {user?.nombre} {user?.apellido} - {user?.carrera}
                 </p>
@@ -242,289 +217,203 @@ export default function StudentDashboard() {
               </div>
             </div>
             
+            {/* Alertas globales */}
             {error && (
               <div className="admin-alert admin-alert-error">
                 <span>{error}</span>
+                <button onClick={clearMessages} className="alert-close">×</button>
+              </div>
+            )}
+
+            {success && (
+              <div className="admin-alert admin-alert-success">
+                <span>{success}</span>
+                <button onClick={clearMessages} className="alert-close">×</button>
               </div>
             )}
             
+            {/* Estadísticas principales */}
             <div className="stats-grid">
               <div className="stat-card primary">
                 <div className="stat-icon">📚</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.totalPortafolios}</div>
-                  <div className="stat-label">Portafolios Asignados</div>
+                  <div className="stat-number">{stats.totalProyectos}</div>
+                  <div className="stat-label">Proyectos Asignados</div>
                 </div>
               </div>
 
               <div className="stat-card success">
-                <div className="stat-icon">📋</div>
+                <div className="stat-icon">✅</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.totalProyectos}</div>
-                  <div className="stat-label">Proyectos Totales</div>
+                  <div className="stat-number">{stats.actividadesCompletadas}</div>
+                  <div className="stat-label">Actividades Completadas</div>
                 </div>
               </div>
 
               <div className="stat-card info">
-                <div className="stat-icon">⚡</div>
+                <div className="stat-icon">📄</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.proyectosEnProceso}</div>
-                  <div className="stat-label">En Progreso</div>
+                  <div className="stat-number">{stats.totalEvidencias}</div>
+                  <div className="stat-label">Evidencias Subidas</div>
                 </div>
               </div>
 
               <div className="stat-card warning">
-                <div className="stat-icon">⚠️</div>
+                <div className="stat-icon">📋</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.alertasActivas}</div>
-                  <div className="stat-label">Alertas Activas</div>
+                  <div className="stat-number">{stats.actividadesTotales}</div>
+                  <div className="stat-label">Actividades Totales</div>
                 </div>
               </div>
             </div>
 
+            {/* Contenido principal del dashboard */}
             <div className="dashboard-grid">
+              {/* Mis Proyectos Activos */}
               <div className="dashboard-card">
                 <div className="card-header">
-                  <h3>Proyectos Recientes</h3>
+                  <h3>Mis Proyectos Activos</h3>
                 </div>
                 <div className="card-content">
-                  <div className="activity-list">
-                    {proyectos.slice(0, 5).map((proyecto, index) => (
-                      <div key={index} className={`activity-item ${getStatusColor(proyecto.estado)}`}>
-                        <div className="activity-dot"></div>
-                        <div className="activity-content">
-                          <p className="activity-message">{proyecto.titulo}</p>
-                          <span className="activity-time">
-                            Estado: {proyecto.estado} - {formatDate(proyecto.fecha_actualizacion)}
-                          </span>
+                  {loading ? (
+                    <div className="loading-container">
+                      <p>Cargando proyectos...</p>
+                    </div>
+                  ) : misProyectos.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">📋</div>
+                      <h4>No tienes proyectos asignados</h4>
+                      <p>Cuando te asignen a un proyecto, aparecerá aquí.</p>
+                    </div>
+                  ) : (
+                    <div className="activity-list">
+                      {misProyectos.slice(0, 5).map((proyecto, index) => (
+                        <div key={index} className="activity-item">
+                          <div className="activity-icon" style={{ color: getRoleColor(proyecto.rol_usuario) }}>
+                            {getRoleIcon(proyecto.rol_usuario)}
+                          </div>
+                          <div className="activity-content">
+                            <p className="activity-message">
+                              <strong>{proyecto.titulo}</strong>
+                              <span className="project-role" style={{ color: getRoleColor(proyecto.rol_usuario) }}>
+                                ({proyecto.rol_usuario})
+                              </span>
+                            </p>
+                            <span className="activity-time">
+                              {proyecto.programa_nombre} • {proyecto.total_actividades || 0} actividades
+                            </span>
+                          </div>
+                          <button 
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleProjectClick(proyecto)}
+                          >
+                            Ver Tablero
+                          </button>
                         </div>
-                        <div className="activity-status">
-                          {getStatusIcon(proyecto.estado)}
+                      ))}
+                      {misProyectos.length > 5 && (
+                        <div className="view-all-projects">
+                          <button 
+                            className="btn btn-secondary"
+                            onClick={() => setVista('proyectos')}
+                          >
+                            Ver todos los proyectos ({misProyectos.length})
+                          </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Estado de Evidencias */}
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Estado de Evidencias</h3>
+                </div>
+                <div className="card-content">
+                  {evidenceStats ? (
+                    <div className="evidence-stats">
+                      <div className="stat-row">
+                        <span className="stat-label">Aprobadas:</span>
+                        <span className="stat-value success">{evidenceStats.estadisticas.aprobadas}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Pendientes:</span>
+                        <span className="stat-value warning">{evidenceStats.estadisticas.pendientes}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Requieren cambios:</span>
+                        <span className="stat-value error">{evidenceStats.estadisticas.requieren_cambios}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Próximas a vencer:</span>
+                        <span className="stat-value warning">{evidenceStats.estadisticas.proximas_vencer}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>Cargando estadísticas de evidencias...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alertas Recientes */}
               <div className="dashboard-card">
                 <div className="card-header">
                   <h3>Alertas Recientes</h3>
                 </div>
                 <div className="card-content">
-                  <div className="activity-list">
-                    {alertas.slice(0, 5).map((alerta, index) => (
-                      <div key={index} className={`activity-item ${alerta.tipo}`}>
-                        <div className="activity-dot"></div>
-                        <div className="activity-content">
-                          <p className="activity-message">{alerta.mensaje}</p>
-                          <span className="activity-time">{formatDate(alerta.fecha_creacion)}</span>
-                        </div>
-                      </div>
-                    ))}
-                    {alertas.length === 0 && (
-                      <div className="empty-state">
-                        <p>No tienes alertas pendientes</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {vista === 'portafolios' && (
-          <div className="admin-section">
-            <div className="admin-header">
-              <h1>Mis Portafolios</h1>
-              <p className="admin-subtitle">
-                Historial de portafolios por año académico
-              </p>
-            </div>
-
-            {renderBreadcrumb()}
-
-            {error && (
-              <div className="admin-alert admin-alert-error">
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="admin-content">
-              {!selectedPortfolio ? (
-         
-                <>
-                  {loading ? (
-                    <div className="loading-container">
-                      <p>Cargando portafolios...</p>
-                    </div>
-                  ) : portafolios.length === 0 ? (
-                    <div className="admin-card">
-                      <div className="empty-state">
-                        <div className="empty-icon">📚</div>
-                        <h3>No tienes portafolios asignados</h3>
-                        <p>Cuando tu coordinador te asigne a un portafolio, aparecerá aquí.</p>
-                      </div>
+                  {alertas.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">🔔</div>
+                      <h4>No tienes alertas</h4>
+                      <p>¡Todo al día!</p>
                     </div>
                   ) : (
-                    <div className="portfolio-grid">
-                      {portafolios.map((portafolio) => (
-                        <div 
-                          className="portfolio-card" 
-                          key={portafolio.id_portafolio}
-                          onClick={() => handlePortfolioClick(portafolio)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <div className="portfolio-card-header">
-                            <span className="portfolio-name">{portafolio.nombre}</span>
-                            <span className="portfolio-career">{portafolio.carrera}</span>
-                          </div>
-                          <div className="portfolio-card-body">
-                            <p className="portfolio-description">{portafolio.descripcion}</p>
-                            <div className="portfolio-dates">
-                              <div>
-                                <span className="portfolio-label">Año:</span>{" "}
-                                <span>{new Date(portafolio.fecha_inicio).getFullYear()}</span>
-                              </div>
-                              <div>
-                                <span className="portfolio-label">Programas:</span>{" "}
-                                <span>{portafolio.total_programas || 0}</span>
-                              </div>
-                            </div>
-                            <div className="portfolio-coordinator">
-                              <span className="portfolio-label">Coordinador:</span>{" "}
-                              <span>
-                                {portafolio.coordinador_nombre} {portafolio.coordinador_apellido}
-                              </span>
-                            </div>
+                    <div className="alerts-preview">
+                      {alertas.slice(0, 3).map((alerta, index) => (
+                        <div key={index} className={`alert-preview-item ${alerta.tipo}`}>
+                          <div className="alert-preview-content">
+                            <h5>{alerta.titulo}</h5>
+                            <p>{alerta.mensaje}</p>
+                            <small>{formatDate(alerta.fecha_creacion)}</small>
                           </div>
                         </div>
                       ))}
+                      {alertas.length > 3 && (
+                        <div className="view-all-alerts">
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setVista('alertas')}
+                          >
+                            Ver todas las alertas ({alertas.length})
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
-                </>
-              ) : !selectedProgram ? (
-
-                <div className="programs-view">
-                  <div className="admin-card">
-                    <div className="card-header">
-                      <h3>Programas en {selectedPortfolio.nombre}</h3>
-                    </div>
-                    <div className="card-content">
-                      <div className="portfolio-grid">
-                        {selectedPortfolio.programas?.map((programa) => (
-                          <div 
-                            key={programa.id_programa} 
-                            className="portfolio-card"
-                            onClick={() => handleProgramClick(programa)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <div className="portfolio-card-header">
-                              <span className="portfolio-name">{programa.nombre}</span>
-                              <span className="portfolio-career">Programa</span>
-                            </div>
-                            <div className="portfolio-card-body">
-                              <p className="portfolio-description">{programa.descripcion}</p>
-                              <div className="portfolio-dates">
-                                <div>
-                                  <span className="portfolio-label">Proyectos:</span>{" "}
-                                  <span>{programa.total_proyectos || 0}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )) || (
-                          <div className="empty-state">
-                            <h3>No hay programas en este portafolio</h3>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              ) : (
-                <div className="projects-view">
-                  <div className="admin-card">
-                    <div className="card-header">
-                      <h3>Proyectos en {selectedProgram.nombre}</h3>
-                    </div>
-                    <div className="card-content">
-                      <div className="projects-list">
-                        {selectedProgram.proyectos?.map((proyecto) => (
-                          <div key={proyecto.id_proyecto} className="project-item">
-                            <div className="project-header">
-                              <h4>{proyecto.titulo}</h4>
-                              <span className={`project-status ${getStatusColor(proyecto.estado)}`}>
-                                {getStatusIcon(proyecto.estado)}
-                                {proyecto.estado}
-                              </span>
-                            </div>
-                            <p className="project-description">{proyecto.descripcion}</p>
-                            <div className="project-meta">
-                              <span>Inicio: {formatDate(proyecto.fecha_inicio)}</span>
-                              <span>Entrega: {formatDate(proyecto.fecha_fin)}</span>
-                            </div>
-                          </div>
-                        )) || (
-                          <div className="empty-state">
-                            <h3>No hay proyectos en este programa</h3>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
 
+        {/* Vista de Mis Proyectos */}
         {vista === 'proyectos' && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mis Proyectos</h1>
               <p className="admin-subtitle">
-                Todas las actividades y proyectos en los que participas
+                Proyectos donde estás asignado como líder o miembro del equipo
               </p>
-            </div>
-
-
-            <div className="admin-card" style={{ marginBottom: '1rem' }}>
-              <div className="card-content">
-                <div className="filters-section">
-                  <div className="search-box">
-                    <AiOutlineSearch className="search-icon" />
-                    <input
-                      type="text"
-                      placeholder="Buscar proyectos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="form-input"
-                    />
-                  </div>
-                  <div className="filter-select">
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="todos">Todos los estados</option>
-                      <option value="borrador">Borrador</option>
-                      <option value="revision">En Revisión</option>
-                      <option value="observaciones">Con Observaciones</option>
-                      <option value="pre-aprobado">Pre-aprobado</option>
-                      <option value="aprobado final">Aprobado Final</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {error && (
               <div className="admin-alert admin-alert-error">
                 <span>{error}</span>
+                <button onClick={clearMessages} className="alert-close">×</button>
               </div>
             )}
 
@@ -533,59 +422,69 @@ export default function StudentDashboard() {
                 <div className="loading-container">
                   <p>Cargando proyectos...</p>
                 </div>
-              ) : filteredProyectos.length === 0 ? (
+              ) : misProyectos.length === 0 ? (
                 <div className="admin-card">
                   <div className="empty-state">
                     <div className="empty-icon">📋</div>
-                    <h3>No tienes proyectos</h3>
-                    <p>Cuando participes en proyectos, aparecerán aquí.</p>
+                    <h3>No tienes proyectos asignados</h3>
+                    <p>Cuando te asignen a un proyecto, aparecerá aquí para que puedas gestionar las actividades.</p>
                   </div>
                 </div>
               ) : (
                 <div className="projects-grid">
-                  {filteredProyectos.map((proyecto) => (
+                  {misProyectos.map((proyecto) => (
                     <div className="project-card" key={proyecto.id_proyecto}>
                       <div className="project-card-header">
                         <h3 className="project-title">{proyecto.titulo}</h3>
-                        <span className={`project-status ${getStatusColor(proyecto.estado)}`}>
-                          {getStatusIcon(proyecto.estado)}
-                          {proyecto.estado}
-                        </span>
+                        <div 
+                          className="project-role-badge" 
+                          style={{ backgroundColor: getRoleColor(proyecto.rol_usuario) }}
+                        >
+                          {getRoleIcon(proyecto.rol_usuario)}
+                          {proyecto.rol_usuario}
+                        </div>
                       </div>
                       <div className="project-card-body">
                         <p className="project-description">{proyecto.descripcion}</p>
                         <div className="project-meta">
                           <div className="meta-item">
-                            <AiOutlineCalendar />
-                            <span>Inicio: {formatDate(proyecto.fecha_inicio)}</span>
-                          </div>
-                          <div className="meta-item">
                             <AiOutlineFlag />
-                            <span>Entrega: {formatDate(proyecto.fecha_fin)}</span>
+                            <span>Programa: {proyecto.programa_nombre}</span>
                           </div>
                           <div className="meta-item">
-                            <AiFillFolder />
-                            <span>Programa: {proyecto.programa_nombre}</span>
+                            <AiOutlineCalendar />
+                            <span>Creado: {formatDate(proyecto.fecha_creacion)}</span>
+                          </div>
+                          <div className="meta-item">
+                            <AiOutlineClockCircle />
+                            <span>Actividades: {proyecto.total_actividades || 0}</span>
                           </div>
                         </div>
                         <div className="project-progress">
+                          <div className="progress-label">
+                            <span>Progreso de actividades</span>
+                            <span>{proyecto.actividades_completadas || 0}/{proyecto.total_actividades || 0}</span>
+                          </div>
                           <div className="progress-bar">
                             <div 
                               className="progress-fill" 
-                              style={{ width: `${proyecto.progreso || 0}%` }}
+                              style={{ 
+                                width: `${proyecto.total_actividades > 0 ? 
+                                  ((proyecto.actividades_completadas || 0) / proyecto.total_actividades) * 100 : 0}%` 
+                              }}
                             ></div>
                           </div>
-                          <span className="progress-text">{proyecto.progreso || 0}%</span>
                         </div>
                       </div>
                       <div className="project-card-actions">
-                        <button className="btn btn-primary">
-                          Ver Detalles
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleProjectClick(proyecto)}
+                        >
+                          Abrir Tablero Kanban
                         </button>
-                        {proyecto.estado === 'borrador' && (
-                          <button className="btn btn-secondary">
-                            Continuar
-                          </button>
+                        {proyecto.rol_usuario === 'lider' && (
+                          <span className="leader-badge">👑 Líder del proyecto</span>
                         )}
                       </div>
                     </div>
@@ -596,12 +495,53 @@ export default function StudentDashboard() {
           </div>
         )}
 
+        {/* Vista del Tablero Kanban */}
+        {vista === 'kanban' && selectedProject && (
+          <div className="admin-section">
+            <div className="admin-header">
+              <div className="header-with-back">
+                <button 
+                  className="btn btn-secondary"
+                  onClick={handleBackToProjects}
+                >
+                  <AiOutlineArrowLeft /> Volver a Proyectos
+                </button>
+                <div>
+                  <h1>{selectedProject.titulo}</h1>
+                  <p className="admin-subtitle">
+                    {selectedProject.programa_nombre} • Tu rol: <strong>{selectedProject.rol_usuario}</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <KanbanBoard 
+              projectId={selectedProject.id_proyecto} 
+              userRole={selectedProject.rol_usuario}
+            />
+          </div>
+        )}
+
+        {/* Vista de Evidencias */}
+        {vista === 'evidencias' && (
+          <div className="admin-section">
+            <div className="admin-header">
+              <h1>Mis Evidencias</h1>
+              <p className="admin-subtitle">
+                Gestiona todas tus evidencias académicas
+              </p>
+            </div>
+            <EvidenceManager selectedProject={selectedProject} />
+          </div>
+        )}
+
+        {/* Vista de Perfil */}
         {vista === 'perfil' && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mi Perfil</h1>
               <p className="admin-subtitle">
-                Información personal y resumen de actividades
+                Información personal y resumen de actividades académicas
               </p>
             </div>
 
@@ -625,25 +565,28 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 </div>
-
+                
                 <div className="admin-card">
                   <div className="card-header">
-                    <h3>Mis Proyectos en Perfil</h3>
+                    <h3>Mis Proyectos Activos</h3>
                   </div>
                   <div className="card-content">
                     <div className="profile-projects">
-                      {proyectos.slice(0, 3).map((proyecto, index) => (
+                      {misProyectos.slice(0, 4).map((proyecto, index) => (
                         <div key={index} className="profile-project-item">
                           <div className="project-info">
                             <h4>{proyecto.titulo}</h4>
                             <p>{proyecto.programa_nombre}</p>
                           </div>
-                          <div className={`project-badge ${getStatusColor(proyecto.estado)}`}>
-                            {proyecto.estado}
+                          <div 
+                            className="project-badge" 
+                            style={{ backgroundColor: getRoleColor(proyecto.rol_usuario) }}
+                          >
+                            {proyecto.rol_usuario}
                           </div>
                         </div>
                       ))}
-                      {proyectos.length === 0 && (
+                      {misProyectos.length === 0 && (
                         <p className="empty-text">No tienes proyectos asignados</p>
                       )}
                     </div>
@@ -652,21 +595,25 @@ export default function StudentDashboard() {
 
                 <div className="admin-card">
                   <div className="card-header">
-                    <h3>Estadísticas</h3>
+                    <h3>Estadísticas Académicas</h3>
                   </div>
                   <div className="card-content">
                     <div className="stats-summary">
                       <div className="stat-item">
                         <span className="stat-number">{stats.totalProyectos}</span>
-                        <span className="stat-label">Proyectos Totales</span>
+                        <span className="stat-label">Proyectos Asignados</span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{stats.proyectosCompletados}</span>
-                        <span className="stat-label">Completados</span>
+                        <span className="stat-number">{stats.actividadesCompletadas}</span>
+                        <span className="stat-label">Actividades Completadas</span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{stats.proyectosEnProceso}</span>
-                        <span className="stat-label">En Proceso</span>
+                        <span className="stat-number">{stats.evidenciasAprobadas}</span>
+                        <span className="stat-label">Evidencias Aprobadas</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-number">{stats.alertasActivas}</span>
+                        <span className="stat-label">Alertas Activas</span>
                       </div>
                     </div>
                   </div>
@@ -676,50 +623,41 @@ export default function StudentDashboard() {
           </div>
         )}
 
-
+        {/* Vista de Alertas */}
         {vista === 'alertas' && (
           <div className="admin-section">
             <div className="admin-header">
-              <h1>Sistema de Alertas</h1>
+              <h1>Alertas</h1>
               <p className="admin-subtitle">
-                Notificaciones y alertas de tus proyectos
+                Notificaciones importantes sobre tus proyectos y actividades
               </p>
             </div>
 
             <div className="admin-content">
               <div className="admin-card">
-                <div className="card-header">
-                  <h3>Alertas Activas</h3>
-                </div>
                 <div className="card-content">
                   <div className="alerts-list">
-                    {alertas.map((alerta, index) => (
-                      <div key={index} className={`alert-item ${alerta.tipo}`}>
-                        <div className="alert-icon">
-                          {alerta.tipo === 'warning' && <AiOutlineWarning />}
-                          {alerta.tipo === 'info' && <AiOutlineExclamationCircle />}
-                          {alerta.tipo === 'error' && <AiOutlineClockCircle />}
-                        </div>
-                        <div className="alert-content">
-                          <h4>{alerta.titulo}</h4>
-                          <p>{alerta.mensaje}</p>
-                          <span className="alert-time">
-                            {formatDate(alerta.fecha_creacion)}
-                          </span>
-                        </div>
-                        <div className="alert-actions">
-                          <button className="btn btn-sm btn-primary">
-                            Ver Proyecto
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {alertas.length === 0 && (
+                    {alertas.length === 0 ? (
                       <div className="empty-state">
                         <div className="empty-icon">🔔</div>
                         <h3>No tienes alertas</h3>
-                        <p>Cuando haya notificaciones importantes, aparecerán aquí.</p>
+                        <p>Cuando tengas notificaciones importantes sobre tus proyectos, aparecerán aquí.</p>
                       </div>
+                    ) : (
+                      alertas.map((alerta, index) => (
+                        <div key={index} className={`alert-item ${alerta.tipo}`}>
+                          <div className="alert-icon">
+                            <AiOutlineBell />
+                          </div>
+                          <div className="alert-content">
+                            <h4>{alerta.titulo}</h4>
+                            <p>{alerta.mensaje}</p>
+                            <div className="alert-time">
+                              {formatDate(alerta.fecha_creacion)}
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
