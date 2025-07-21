@@ -37,18 +37,9 @@ export default function Estudiantes() {
     return <p>No hay estudiantes en esta carrera.</p>;
 
   return (
-    <div className="estudiantes-container">
-      <h1 className="estudiantes-title">Estudiantes de la carrera {carrera}</h1>
-      <ul className="estudiantes-list">
-        {estudiantes.map((e) => (
-          <li key={e.id_usuario} className="estudiante-card">
-            <p className="estudiante-nombre">
-              {e.nombre} {e.apellido}
-            </p>
-            <p className="estudiante-id">ID: {e.id_usuario}</p>
-          </li>
-        ))}
-      </ul>
+    <div className="coming-soon">
+      <h1>Gestión pendiente Pene</h1>
+      <p>Esta sección estará disponible próximamente</p>
     </div>
   );
 }

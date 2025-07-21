@@ -274,3 +274,7 @@ export const activarCuenta = async (req, res) => {
     res.status(400).json({ success: false, error: 'Token inválido o expirado' });
   }
 };
+
+export const logout = (req, res) => {
+  res.json({ success: true, message: "Sesión cerrada correctamente." });
+};
