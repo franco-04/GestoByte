@@ -6,7 +6,8 @@ import {
   sendRecoveryCode,
   verificarCodigo,
   resetPassword,
-  activarCuenta
+  activarCuenta,
+  logout
 } from '../controllers/authController.js';
 
 import {
@@ -79,6 +80,7 @@ router.post('/send-code', sendRecoveryCode);
 router.post('/verificar-codigo', verificarCodigo);
 router.post('/reset-password', resetPassword);
 router.get('/activar/:token', activarCuenta);
+router.post('/logout', authenticate, logout);
 
 // =================== RUTAS DE ADMINISTRACIÓN - PORTAFOLIOS ===================
 router.post('/portafolios', authenticate, createPortfolio);

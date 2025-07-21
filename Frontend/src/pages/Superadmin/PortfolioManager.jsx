@@ -29,14 +29,6 @@ export default function PortfolioManager() {
   });
 
   useEffect(() => {
-    const fetchEstudiantes = async () => {
-      try {
-        const res = await api.get("/auth/usuarios");
-        setEstudiantes(res.data);
-      } catch (error) {
-        setEstudiantes([]);
-      }
-    };
     const fetchAsesores = async () => {
       try {
         const res = await api.get("/auth/profesores");
@@ -45,7 +37,6 @@ export default function PortfolioManager() {
         setAsesores([]);
       }
     };
-    fetchEstudiantes();
     fetchAsesores();
     fetchMisPortafolios();
   }, []);
