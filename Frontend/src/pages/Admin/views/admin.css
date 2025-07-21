@@ -1,0 +1,57 @@
+/* Contenedor principal */
+.estudiantes-container {
+  padding: 1.5rem;
+  background: #f7fafc;
+  min-height: 100vh;
+}
+
+/* Título */
+.estudiantes-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+/* Lista de estudiantes */
+.estudiantes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Tarjeta de estudiante */
+.estudiante-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: box-shadow 0.2s;
+}
+
+.estudiante-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+/* Nombre del estudiante */
+.estudiante-nombre {
+  font-weight: 600;
+  color: #1a202c;
+}
+
+/* ID del estudiante */
+.estudiante-id {
+  font-size: 0.95rem;
+  color: #718096;
+  margin-top: 0.25rem;
+}
+
+/* Mensajes de estado */
+.estudiantes-msg {
+  color: #e53e3e;
+  font-weight: 500;
+  margin: 1rem 0;
+  text-align: center;
+}

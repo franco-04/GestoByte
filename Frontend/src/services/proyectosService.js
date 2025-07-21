@@ -56,6 +56,15 @@ const proyectosService = {
       throw errorHandler(error);
     }
   },
+
+    getEstudiantesByCarrera: async (carrera) => {
+    try {
+      const res = await api.get(`/auth/estudiantes/carrera/${encodeURIComponent(carrera)}`);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
 };
 
 export default proyectosService;

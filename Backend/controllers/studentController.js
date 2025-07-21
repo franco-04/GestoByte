@@ -362,3 +362,19 @@ export const updateProjectProgress = async (req, res) => {
     res.status(500).json({ error: "Error al actualizar progreso" });
   }
 };
+
+export const getEstudiantesByCarrera = async (req, res) => {
+  try {
+    const carrera = req.params.carrera;
+    const [estudiantes] = await pool.query(
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.email
+       FROM usuarios u
+       WHERE u.carrera = ? AND u.rol = 'estudiante'`,
+      [carrera]
+    );
+    res.json(estudiantes);
+  } catch (error) {
+    console.error('Error al obtener estudiantes por carrera:', error);
+    res.status(500).json({ error: 'Error al obtener estudiantes por carrera' });
+  }
+};

@@ -67,6 +67,7 @@ import {
   upload as uploadActivity
 } from '../controllers/activitiesController.js';
 
+import { getEstudiantesByCarrera } from '../controllers/studentController.js';
 import { authenticate } from '../middlewares/auth.js';
 
 const router = express.Router();
@@ -148,4 +149,6 @@ router.get('/activities/evidence/:id_evidencia/download', authenticate, download
 // Gestión de miembros del proyecto
 router.get('/activities/project/:id_proyecto/members', authenticate, getProjectMembers);
 
+
+router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
 export default router;
