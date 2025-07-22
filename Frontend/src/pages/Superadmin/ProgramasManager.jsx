@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../../api/api";
+import proyectosService from "../../services/proyectosService";
 import "../Superadmin/Superadmin.css";
 
 export default function ProgramasManager() {
@@ -20,8 +20,8 @@ export default function ProgramasManager() {
 
   const fetchMisPortafolios = async () => {
     try {
-      const res = await api.get("/auth/mis-portafolios");
-      setMisPortafolios(res.data);
+      const res = await proyectosService.getMisPortafolios();
+      setMisPortafolios(res);
     } catch (error) {
       setMisPortafolios([]);
     }
@@ -34,12 +34,11 @@ export default function ProgramasManager() {
     setNombre("");
     setDescripcion("");
     setAsesoresSeleccionados([]);
-    // Cargar programas y asesores asignados a este portafolio
     try {
-      const resProgramas = await api.get(`/auth/portafolios/${portafolio.id_portafolio}/programas`);
-      setProgramas(resProgramas.data);
-      const resAsesores = await api.get(`/auth/portafolios/${portafolio.id_portafolio}/asesores`);
-      setAsesores(resAsesores.data);
+      const resProgramas = await proyectosService.getProgramasByPortafolio(portafolio.id_portafolio);
+      setProgramas(resProgramas);
+      const resAsesores = await proyectosService.getAsesoresPortafolio(portafolio.id_portafolio);
+      setAsesores(resAsesores);
     } catch (error) {
       setError("Error al cargar datos del portafolio");
       setProgramas([]);
@@ -53,7 +52,7 @@ export default function ProgramasManager() {
     setError("");
     setSuccess("");
     try {
-      await api.post(`/auth/portafolios/${portafolioSeleccionado.id_portafolio}/programas`, {
+      await proyectosService.createPrograma(portafolioSeleccionado.id_portafolio, {
         nombre,
         descripcion,
         asesores: asesoresSeleccionados,
@@ -62,9 +61,8 @@ export default function ProgramasManager() {
       setNombre("");
       setDescripcion("");
       setAsesoresSeleccionados([]);
-      // Recargar programas
-      const resProgramas = await api.get(`/auth/portafolios/${portafolioSeleccionado.id_portafolio}/programas`);
-      setProgramas(resProgramas.data);
+      const resProgramas = await proyectosService.getProgramasByPortafolio(portafolioSeleccionado.id_portafolio);
+      setProgramas(resProgramas);
     } catch (error) {
       setError("Error al crear el programa");
     } finally {

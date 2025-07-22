@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import api from "../../api/api";
 import "../Superadmin/Superadmin.css";
+import proyectosService from "../../services/proyectosService";
 
 export default function PortfolioManager() {
   const [nombre, setNombre] = useState("");
@@ -31,29 +31,27 @@ export default function PortfolioManager() {
   useEffect(() => {
     const fetchAsesores = async () => {
       try {
-        const res = await api.get("/auth/profesores");
-        setAsesores(res.data);
+        const asesoresData = await proyectosService.getProfesores();
+        setAsesores(asesoresData);
       } catch (error) {
         setAsesores([]);
+      }
+    };
+    const fetchMisPortafolios = async () => {
+      try {
+        const portafolios = await proyectosService.getMisPortafolios();
+        setMisPortafolios(portafolios);
+      } catch (error) {
+        setMisPortafolios([]);
       }
     };
     fetchAsesores();
     fetchMisPortafolios();
   }, []);
 
-  const fetchMisPortafolios = async () => {
-    try {
-      const res = await api.get("/auth/mis-portafolios");
-      setMisPortafolios(res.data);
-    } catch (error) {
-      setMisPortafolios([]);
-    }
-  };
-
   const createPortafolio = async (data) => {
     try {
-      const res = await api.post("/auth/portafolios", data);
-      return res.data;
+      await proyectosService.createPortfolio(data);
     } catch (error) {
       throw error.res?.data?.error || "Error al crear portafolio";
     }
@@ -79,7 +77,9 @@ export default function PortfolioManager() {
       setDescripcion("");
       setCarrera("");
       setAsesoresSeleccionados([]);
-      fetchMisPortafolios();
+      // Actualiza la lista de portafolios
+      const portafolios = await proyectosService.getMisPortafolios();
+      setMisPortafolios(portafolios);
     } catch (error) {
       setError(error);
     } finally {
@@ -95,9 +95,10 @@ export default function PortfolioManager() {
   const eliminarPortafolio = async (id_portafolio) => {
     if (!window.confirm("¿Seguro que deseas eliminar este portafolio?")) return;
     try {
-      await api.put(`/auth/${id_portafolio}/eliminar-portafolio`);
+      await proyectosService.eliminarPortafolio(id_portafolio);
       setSuccess("Portafolio eliminado correctamente");
-      fetchMisPortafolios();
+      const portafolios = await proyectosService.getMisPortafolios();
+      setMisPortafolios(portafolios);
     } catch (error) {
       setError("Error al eliminar el portafolio");
     }
@@ -116,13 +117,14 @@ export default function PortfolioManager() {
   const editarPortafolio = async (e) => {
     e.preventDefault();
     try {
-      await api.put(`/auth/${editData.id_portafolio}`, {
+      await proyectosService.editarPortafolio(editData.id_portafolio, {
         nombre: editData.nombre,
         descripcion: editData.descripcion,
       });
       setSuccess("Portafolio actualizado correctamente");
       setShowEditModal(false);
-      fetchMisPortafolios();
+      const portafolios = await proyectosService.getMisPortafolios();
+      setMisPortafolios(portafolios);
     } catch (error) {
       setError("Error al actualizar el portafolio");
     }

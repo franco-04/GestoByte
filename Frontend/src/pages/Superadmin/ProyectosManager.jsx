@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../../api/api";
+import proyectosService from "../../services/proyectosService";
 import "../Superadmin/Superadmin.css";
 
 export default function ProyectosManager() {
@@ -22,8 +22,8 @@ export default function ProyectosManager() {
 
   const fetchMisPortafolios = async () => {
     try {
-      const res = await api.get("/auth/mis-portafolios");
-      setMisPortafolios(res.data);
+      const res = await proyectosService.getMisPortafolios();
+      setMisPortafolios(res);
     } catch {
       setMisPortafolios([]);
     }
@@ -37,10 +37,9 @@ export default function ProyectosManager() {
     setLider("");
     setNombre("");
     setDescripcion("");
-    // Cargar programas del portafolio
     try {
-      const res = await api.get(`/auth/portafolios/${portafolio.id_portafolio}/programas`);
-      setProgramas(res.data);
+      const res = await proyectosService.getProgramasByPortafolio(portafolio.id_portafolio);
+      setProgramas(res);
     } catch {
       setProgramas([]);
     }
@@ -54,13 +53,11 @@ export default function ProyectosManager() {
     setLider("");
     setNombre("");
     setDescripcion("");
-    // Cargar proyectos del programa
     try {
-      const resProyectos = await api.get(`/auth/programas/${programa.id_programa}/proyectos`);
-      setProyectos(resProyectos.data);
-      // Cargar estudiantes de la carrera del portafolio
-      const resEstudiantes = await api.get(`/auth/programas/${programa.id_programa}/estudiantes`);
-      setEstudiantes(resEstudiantes.data);
+      const resProyectos = await proyectosService.getProyectosByPrograma(programa.id_programa);
+      setProyectos(resProyectos);
+      const resEstudiantes = await proyectosService.getEstudiantesByPrograma(programa.id_programa);
+      setEstudiantes(resEstudiantes);
     } catch {
       setProyectos([]);
       setEstudiantes([]);
@@ -73,7 +70,7 @@ export default function ProyectosManager() {
     setError("");
     setSuccess("");
     try {
-      await api.post(`/auth/programas/${programaSeleccionado.id_programa}/proyectos`, {
+      await proyectosService.crearProyecto(programaSeleccionado.id_programa, {
         nombre,
         descripcion,
         estudiantes: estudiantesSeleccionados,
@@ -84,9 +81,8 @@ export default function ProyectosManager() {
       setDescripcion("");
       setEstudiantesSeleccionados([]);
       setLider("");
-      // Recargar proyectos
-      const resProyectos = await api.get(`/auth/programas/${programaSeleccionado.id_programa}/proyectos`);
-      setProyectos(resProyectos.data);
+      const resProyectos = await proyectosService.getProyectosByPrograma(programaSeleccionado.id_programa);
+      setProyectos(resProyectos);
     } catch {
       setError("Error al crear el proyecto");
     } finally {

@@ -1,8 +1,28 @@
-// src/services/proyectosService.js
 import api from "../api/api";
 import errorHandler from "../utils/errorHandler";
 
 const proyectosService = {
+  // 1. Crear portafolio
+  createPortfolio: async (data) => {
+    try {
+      const res = await api.post("/auth/portafolios", data);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 2. Obtener profesores
+  getProfesores: async () => {
+    try {
+      const res = await api.get("/auth/profesores");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 3. Obtener portafolios del coordinador
   getMisPortafolios: async () => {
     try {
       const res = await api.get("/auth/mis-portafolios");
@@ -12,6 +32,37 @@ const proyectosService = {
     }
   },
 
+  // 4. Eliminar portafolio
+  eliminarPortafolio: async (id) => {
+    try {
+      const res = await api.put(`/auth/${id}/eliminar-portafolio`);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 5. Editar portafolio
+  editarPortafolio: async (id, data) => {
+    try {
+      const res = await api.put(`/auth/${id}`, data);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 6. Obtener estudiantes de un portafolio
+  getEstudiantesPortafolio: async (id) => {
+    try {
+      const res = await api.get(`/auth/portafolios/${id}/estudiantes`);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 7. Obtener programas por portafolio
   getProgramasByPortafolio: async (id) => {
     try {
       const res = await api.get(`/auth/portafolios/${id}/programas`);
@@ -21,6 +72,17 @@ const proyectosService = {
     }
   },
 
+  // 8. Obtener asesores por portafolio
+  getAsesoresPortafolio: async (id) => {
+    try {
+      const res = await api.get(`/auth/portafolios/${id}/asesores`);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 9. Crear programa en portafolio
   createPrograma: async (id, data) => {
     try {
       const res = await api.post(`/auth/portafolios/${id}/programas`, data);
@@ -30,6 +92,7 @@ const proyectosService = {
     }
   },
 
+  // 10. Obtener proyectos por programa
   getProyectosByPrograma: async (id) => {
     try {
       const res = await api.get(`/auth/programas/${id}/proyectos`);
@@ -39,6 +102,7 @@ const proyectosService = {
     }
   },
 
+  // 11. Obtener estudiantes por programa
   getEstudiantesByPrograma: async (id) => {
     try {
       const res = await api.get(`/auth/programas/${id}/estudiantes`);
@@ -48,6 +112,7 @@ const proyectosService = {
     }
   },
 
+  // 12. Crear proyecto en programa
   crearProyecto: async (id, data) => {
     try {
       const res = await api.post(`/auth/programas/${id}/proyectos`, data);
@@ -57,9 +122,10 @@ const proyectosService = {
     }
   },
 
-    getEstudiantesByCarrera: async (carrera) => {
+  // 13. Obtener estudiantes por proyecto
+  getEstudiantesProyecto: async (idPrograma, idProyecto) => {
     try {
-      const res = await api.get(`/auth/estudiantes/carrera/${encodeURIComponent(carrera)}`);
+      const res = await api.get(`/auth/programas/${idPrograma}/proyectos/${idProyecto}/estudiantes`);
       return res.data;
     } catch (error) {
       throw errorHandler(error);
