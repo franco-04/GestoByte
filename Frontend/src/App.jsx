@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Auth/Login.jsx";
 import Register from "./pages/Auth/Register";
@@ -7,14 +7,20 @@ import StudentDashboard from "./pages/Estudiantes/StudentDashboard.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import SuperAdminDashboard from "./pages/Superadmin/SuperAdminDashboard.jsx";
 import Unauthorized from "./pages/Unauthorized.jsx";
-// Importar el componente de gestión de portafolios
 import PortfolioManager from "./pages/Superadmin/PortfolioManager";
 import ProgramasManager from "./pages/Superadmin/ProgramasManager.jsx";
-
 import Recuperar from "./pages/Auth/Recuperar";
 import AccountActivation from "./pages/Auth/AccountActivation.jsx";
 
+
+import setupInterceptors from "./api/authInterceptor";
+
 function App() {
+
+  useEffect(() => {
+    setupInterceptors();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
@@ -24,7 +30,6 @@ function App() {
       <Route path="/recuperar" element={<Recuperar />} />
       <Route path="/activar-cuenta/:token" element={<AccountActivation />} />
 
-      {/* Rutas protegidas por rol */}
       <Route
         path="/estudiante"
         element={
@@ -69,8 +74,6 @@ function App() {
           </PrivateRoute>
         }
       />
-      
- 
     </Routes>
   );
 }

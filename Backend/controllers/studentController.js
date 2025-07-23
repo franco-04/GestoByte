@@ -1,6 +1,5 @@
 import pool from "../config/db.js";
 
-
 export const getStudentProjects = async (req, res) => {
   try {
     const id_usuario = req.user.id;
@@ -8,22 +7,20 @@ export const getStudentProjects = async (req, res) => {
     const [proyectos] = await pool.query(
       `SELECT 
         p.id_proyecto,
-        p.titulo,
+        p.nombre as titulo,
         p.descripcion,
-        p.fecha_inicio,
-        p.fecha_fin_real AS fecha_fin,
-        p.estado,
-        p.progreso_porcentaje AS progreso,
-        p.fecha_actualizacion,
+        p.fecha_creacion,
         prog.nombre as programa_nombre,
-        pf.nombre as portafolio_nombre,
-        pf.carrera
-       FROM proyectos p
-       INNER JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
+        port.nombre as portafolio_nombre,
+        pe.rol as rol_usuario,
+        (SELECT COUNT(*) FROM actividades_proyecto ap WHERE ap.id_proyecto = p.id_proyecto AND ap.activo = 1) as total_actividades,
+        (SELECT COUNT(*) FROM actividades_proyecto ap WHERE ap.id_proyecto = p.id_proyecto AND ap.estado = 'completado' AND ap.activo = 1) as actividades_completadas
+       FROM proyecto_estudiantes pe
+       INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
-       INNER JOIN portafolios pf ON prog.id_portafolio = pf.id_portafolio
-       WHERE pe.id_usuario = ? AND p.activo = 1
-       ORDER BY p.fecha_actualizacion DESC`,
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE pe.id_estudiante = ? AND p.activo = 1
+       ORDER BY p.fecha_creacion DESC`,
       [id_usuario]
     );
 
@@ -58,7 +55,7 @@ export const getEnhancedStudentStats = async (req, res) => {
       `SELECT COUNT(*) as proximas 
        FROM proyecto_estudiantes pe
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_usuario = ? AND p.activo = 1 
+       WHERE pe.id_estudiante = ? AND p.activo = 1 
        AND p.fecha_fin BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)`,
       [id_usuario]
     );
@@ -67,7 +64,7 @@ export const getEnhancedStudentStats = async (req, res) => {
       `SELECT COUNT(*) as total 
        FROM proyecto_estudiantes pe
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_usuario = ? AND p.activo = 1`,
+       WHERE pe.id_estudiante = ? AND p.activo = 1`,
       [id_usuario]
     );
 
@@ -75,7 +72,7 @@ export const getEnhancedStudentStats = async (req, res) => {
       `SELECT COUNT(*) as en_proceso 
        FROM proyecto_estudiantes pe
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_usuario = ? AND p.activo = 1 
+       WHERE pe.id_estudiante = ? AND p.activo = 1 
        AND p.estado IN ('borrador', 'revision', 'observaciones', 'pre-aprobado')`,
       [id_usuario]
     );
@@ -84,7 +81,7 @@ export const getEnhancedStudentStats = async (req, res) => {
       `SELECT COUNT(*) as completados 
        FROM proyecto_estudiantes pe
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_usuario = ? AND p.activo = 1 
+       WHERE pe.id_estudiante = ? AND p.activo = 1 
        AND p.estado = 'aprobado final'`,
       [id_usuario]
     );
@@ -114,7 +111,6 @@ export const getEnhancedStudentStats = async (req, res) => {
 export const getStudentPortfoliosWithHierarchy = async (req, res) => {
   try {
     const id_usuario = req.user.id;
-
 
     const [portafolios] = await pool.query(
       `SELECT 
@@ -159,15 +155,16 @@ export const getStudentPortfoliosWithHierarchy = async (req, res) => {
         const [proyectos] = await pool.query(
           `SELECT 
             p.id_proyecto,
-            p.titulo,
+            p.nombre as titulo,
             p.descripcion,
             p.fecha_inicio,
             p.fecha_fin,
             p.estado,
-            p.progreso
+            p.progreso,
+            pe.rol
            FROM proyectos p
            INNER JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
-           WHERE p.id_programa = ? AND pe.id_usuario = ? AND p.activo = 1
+           WHERE p.id_programa = ? AND pe.id_estudiante = ? AND p.activo = 1
            ORDER BY p.fecha_creacion DESC`,
           [programa.id_programa, id_usuario]
         );
@@ -242,12 +239,11 @@ export const getProjectDetails = async (req, res) => {
     const { id_proyecto } = req.params;
     const id_usuario = req.user.id;
 
-
     const [access] = await pool.query(
-      `SELECT pe.id_usuario 
+      `SELECT pe.id_estudiante 
        FROM proyecto_estudiantes pe 
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_proyecto = ? AND pe.id_usuario = ? AND p.activo = 1`,
+       WHERE pe.id_proyecto = ? AND pe.id_estudiante = ? AND p.activo = 1`,
       [id_proyecto, id_usuario]
     );
 
@@ -258,7 +254,7 @@ export const getProjectDetails = async (req, res) => {
     const [proyecto] = await pool.query(
       `SELECT 
         p.id_proyecto,
-        p.titulo,
+        p.nombre as titulo,
         p.descripcion,
         p.fecha_inicio,
         p.fecha_fin,
@@ -297,12 +293,11 @@ export const getProjectDetails = async (req, res) => {
       [id_proyecto]
     );
 
-
     const [companeros] = await pool.query(
-      `SELECT u.nombre, u.apellido, u.email
+      `SELECT u.nombre, u.apellido, u.email, pe.rol
        FROM proyecto_estudiantes pe
-       INNER JOIN usuarios u ON pe.id_usuario = u.id_usuario
-       WHERE pe.id_proyecto = ? AND pe.id_usuario != ?`,
+       INNER JOIN usuarios u ON pe.id_estudiante = u.id_usuario
+       WHERE pe.id_proyecto = ? AND pe.id_estudiante != ?`,
       [id_proyecto, id_usuario]
     );
 
@@ -324,10 +319,10 @@ export const updateProjectProgress = async (req, res) => {
     const id_usuario = req.user.id;
 
     const [access] = await pool.query(
-      `SELECT pe.id_usuario 
+      `SELECT pe.id_estudiante 
        FROM proyecto_estudiantes pe 
        INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_proyecto = ? AND pe.id_usuario = ? AND p.activo = 1`,
+       WHERE pe.id_proyecto = ? AND pe.id_estudiante = ? AND p.activo = 1`,
       [id_proyecto, id_usuario]
     );
 
@@ -335,11 +330,9 @@ export const updateProjectProgress = async (req, res) => {
       return res.status(403).json({ error: "No tienes acceso a este proyecto" });
     }
 
-
     if (progreso < 0 || progreso > 100) {
       return res.status(400).json({ error: "El progreso debe estar entre 0 y 100" });
     }
-
 
     const [result] = await pool.query(
       `UPDATE proyectos 

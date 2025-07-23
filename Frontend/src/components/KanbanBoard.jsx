@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   AiOutlinePlus,
@@ -78,7 +77,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
     setLoading(true);
     try {
       const res = await api.get(`/auth/activities/project/${projectId}`);
-      setActivities(res.data.activities || []);
+      setActivities(res.data.actividades || []);
     } catch (error) {
       setError("Error al cargar actividades");
       console.error(error);
@@ -231,7 +230,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
 
   if (loading) {
     return (
-      <div className="loading-container">
+      <div className="loading-kanban">
         <p>Cargando tablero Kanban...</p>
       </div>
     );
@@ -283,7 +282,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
             
             <div className="column-content">
               {groupedActivities[estado.key]?.map((activity) => (
-                <div key={activity.id_actividad} className="activity-card">
+                <div key={activity.id_actividad} className="activity-card" data-priority={activity.prioridad}>
                   <div className="activity-header">
                     <h4 className="activity-title">{activity.titulo}</h4>
                     <div className="activity-priority" title={`Prioridad: ${activity.prioridad}`}>
@@ -303,50 +302,52 @@ const KanbanBoard = ({ projectId, userRole }) => {
                       </div>
                     )}
                     
-                    {activity.asignados?.length > 0 && (
+                    {activity.asignados && activity.asignados.length > 0 && (
                       <div className="meta-item">
                         <AiOutlineUser />
                         <span>{activity.asignados.join(', ')}</span>
                       </div>
                     )}
-                    
-                    <div className="activity-stats">
-                      {activity.total_evidencias > 0 && (
-                        <span className="stat-badge evidences" title="Evidencias">
-                          <AiOutlineFile /> {activity.total_evidencias}
-                        </span>
-                      )}
-                      {activity.total_comentarios > 0 && (
-                        <span className="stat-badge comments" title="Comentarios">
-                          <AiOutlineComment /> {activity.total_comentarios}
-                        </span>
-                      )}
-                    </div>
+                  </div>
+                  
+                  <div className="activity-stats">
+                    {activity.total_evidencias > 0 && (
+                      <span className="stat-badge evidences" title="Evidencias">
+                        <AiOutlineFile /> {activity.total_evidencias}
+                      </span>
+                    )}
+                    {activity.total_comentarios > 0 && (
+                      <span className="stat-badge comments" title="Comentarios">
+                        <AiOutlineComment /> {activity.total_comentarios}
+                      </span>
+                    )}
                   </div>
                   
                   <div className="activity-actions">
-                    {canUploadEvidence(activity) && (
-                      <button 
-                        className="btn-icon btn-primary"
-                        onClick={() => {
-                          setSelectedActivity(activity);
-                          setShowEvidenceModal(true);
-                        }}
-                        title="Subir evidencia"
-                      >
-                        <AiOutlineUpload />
-                      </button>
-                    )}
-                    
-                    {activity.total_evidencias > 0 && (
-                      <button 
-                        className="btn-icon btn-secondary"
-                        onClick={() => handleViewEvidences(activity)}
-                        title="Ver evidencias"
-                      >
-                        <AiOutlineEye />
-                      </button>
-                    )}
+                    <div className="action-buttons">
+                      {canUploadEvidence(activity) && (
+                        <button 
+                          className="btn-icon btn-primary"
+                          onClick={() => {
+                            setSelectedActivity(activity);
+                            setShowEvidenceModal(true);
+                          }}
+                          title="Subir evidencia"
+                        >
+                          <AiOutlineUpload />
+                        </button>
+                      )}
+                      
+                      {activity.total_evidencias > 0 && (
+                        <button 
+                          className="btn-icon btn-secondary"
+                          onClick={() => handleViewEvidences(activity)}
+                          title="Ver evidencias"
+                        >
+                          <AiOutlineEye />
+                        </button>
+                      )}
+                    </div>
                     
                     {canEditActivity(activity) && activity.estado !== 'completado' && (
                       <div className="status-controls">
@@ -361,15 +362,13 @@ const KanbanBoard = ({ projectId, userRole }) => {
                         )}
                         
                         {activity.estado === 'en_progreso' && (
-                          <>
-                            <button 
-                              className="btn-icon btn-warning"
-                              onClick={() => handleStatusChange(activity.id_actividad, 'revision')}
-                              title="Enviar a revisión"
-                            >
-                              <AiOutlineEye />
-                            </button>
-                          </>
+                          <button 
+                            className="btn-icon btn-warning"
+                            onClick={() => handleStatusChange(activity.id_actividad, 'revision')}
+                            title="Enviar a revisión"
+                          >
+                            <AiOutlineEye />
+                          </button>
                         )}
                         
                         {(activity.estado === 'revision' && userRole === 'lider') && (

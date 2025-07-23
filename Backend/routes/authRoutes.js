@@ -53,7 +53,9 @@ import {
   getEvidenceHistory,
   getStudentEvidenceStats,
   getEvidenceNotifications,
-  markNotificationAsRead
+  markNotificationAsRead,
+   getAllStudentEvidencesUnified,
+   getUnifiedEvidenceStats
 } from '../controllers/evidenceController.js';
 
 import {
@@ -73,7 +75,6 @@ import { authenticate } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// =================== RUTAS DE AUTENTICACIÓN ===================
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', authenticate, getProfile);
@@ -83,7 +84,6 @@ router.post('/reset-password', resetPassword);
 router.get('/activar/:token', activarCuenta);
 router.post('/logout', authenticate, logout);
 
-// =================== RUTAS DE ADMINISTRACIÓN - PORTAFOLIOS ===================
 router.post('/portafolios', authenticate, createPortfolio);
 router.get('/profesores', authenticate, getProfesores);
 router.get('/mis-portafolios', authenticate, getPortafoliosByCoordinador);
@@ -91,38 +91,32 @@ router.put('/:id/eliminar-portafolio', authenticate, eliminarPortafolio);
 router.put('/:id', authenticate, editarPortafolio);
 router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolio);
 
-// =================== RUTAS DE ADMINISTRACIÓN - PROGRAMAS ===================
 router.get('/portafolios/:id_portafolio/programas', authenticate, getProgramasPortafolio);
 router.get('/portafolios/:id_portafolio/asesores', authenticate, getAsesoresPortafolio);
 router.post('/portafolios/:id_portafolio/programas', authenticate, createPrograma);
 
-// =================== RUTAS DE ADMINISTRACIÓN - PROYECTOS ===================
 router.get('/programas/:id_programa/proyectos', authenticate, getProyectosPrograma);
 router.get('/programas/:id_programa/estudiantes', authenticate, getEstudiantesPrograma);
 router.post('/programas/:id_programa/proyectos', authenticate, createProyecto); 
 router.get('/programas/:id_programa/proyectos/:id_proyecto/estudiantes', authenticate, getEstudiantesProyecto);
 
-// =================== RUTAS DE ESTUDIANTES - ESTADÍSTICAS Y PORTAFOLIOS ===================
 router.get('/student/stats', authenticate, getStudentStats);
 router.get('/student/stats-enhanced', authenticate, getEnhancedStudentStats);
 router.get('/student/portafolios', authenticate, getStudentPortafolios);
 router.get('/student/portafolios/:id', authenticate, getStudentPortfolioDetails);
 router.get('/student/portafolios-hierarchy', authenticate, getStudentPortfoliosWithHierarchy);
 
-// =================== RUTAS DE ESTUDIANTES - PROYECTOS ===================
-// Proyectos antiguos (para compatibilidad)
 router.get('/student/proyectos', authenticate, getStudentProjectsOld);
 router.get('/student/proyectos/:id_proyecto', authenticate, getProjectDetails);
 router.put('/student/proyectos/:id_proyecto/progress', authenticate, updateProjectProgress);
 
-// Mis proyectos con roles (nueva funcionalidad)
+
 router.get('/student/my-projects', authenticate, getStudentProjects);
 
-// =================== RUTAS DE ESTUDIANTES - ALERTAS ===================
+
 router.get('/student/alertas', authenticate, getStudentAlerts);
 router.put('/student/alertas/:id_alerta/read', authenticate, markAlertAsRead);
 
-// =================== RUTAS DE EVIDENCIAS GENERALES ===================
 router.post('/student/evidencias/upload', authenticate, upload.single('archivo'), uploadEvidence);
 router.post('/student/evidencias/upload-link', authenticate, uploadEvidenceLink);
 router.get('/student/evidencias/proyecto/:id_proyecto', authenticate, getStudentEvidences);
@@ -137,20 +131,20 @@ router.get('/student/evidencias/stats', authenticate, getStudentEvidenceStats);
 router.get('/student/evidencias/notificaciones', authenticate, getEvidenceNotifications);
 router.put('/student/evidencias/notificaciones/:id_notificacion/read', authenticate, markNotificationAsRead);
 
-// =================== RUTAS DE ACTIVIDADES Y KANBAN ===================
-// Gestión de actividades del proyecto
+
 router.get('/activities/project/:id_proyecto', authenticate, getProjectActivities);
 router.post('/activities/project/:id_proyecto', authenticate, createActivity);
 router.put('/activities/:id_actividad/status', authenticate, updateActivityStatus);
 
-// Evidencias específicas de actividades
 router.post('/activities/:id_actividad/evidence', authenticate, uploadActivity.single('archivo'), uploadActivityEvidence);
 router.get('/activities/:id_actividad/evidences', authenticate, getActivityEvidences);
 router.get('/activities/evidence/:id_evidencia/download', authenticate, downloadActivityEvidence);
 
-// Gestión de miembros del proyecto
+
 router.get('/activities/project/:id_proyecto/members', authenticate, getProjectMembers);
 
-
 router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
+router.get('/student/evidencias/todas-unificadas', authenticate, getAllStudentEvidencesUnified);
+router.get('/student/evidencias/stats-unificadas', authenticate, getUnifiedEvidenceStats);
+
 export default router;

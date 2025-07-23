@@ -76,20 +76,20 @@ export default function StudentDashboard() {
     }
   };
 
-  const fetchEvidenceStats = async () => {
-    try {
-      const res = await api.get("/auth/student/evidencias/stats");
-      setEvidenceStats(res.data);
-      setStats(prev => ({
-        ...prev,
-        totalEvidencias: res.data.estadisticas.total_evidencias,
-        evidenciasAprobadas: res.data.estadisticas.aprobadas,
-        evidenciasPendientes: res.data.estadisticas.pendientes
-      }));
-    } catch (error) {
-      console.error("Error al obtener estadísticas de evidencias:", error);
-    }
-  };
+const fetchEvidenceStats = async () => {
+  try {
+    const res = await api.get("/auth/student/evidencias/stats-unificadas"); // 🔥 NUEVA RUTA
+    setEvidenceStats(res.data);
+    setStats(prev => ({
+      ...prev,
+      totalEvidencias: res.data.estadisticas.total_evidencias,
+      evidenciasAprobadas: res.data.estadisticas.aprobadas,
+      evidenciasPendientes: res.data.estadisticas.pendientes
+    }));
+  } catch (error) {
+    console.error("Error al obtener estadísticas de evidencias:", error);
+  }
+};
 
   const fetchAlertas = async () => {
     try {

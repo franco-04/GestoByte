@@ -634,4 +634,190 @@ export const markNotificationAsRead = async (req, res) => {
     console.error('Error al marcar notificación:', error);
     res.status(500).json({ error: "Error al marcar notificación" });
   }
+
+
+
+
+
+
+};
+
+
+export const getAllStudentEvidencesUnified = async (req, res) => {
+  try {
+    const id_estudiante = req.user.id;
+
+    // Obtener evidencias generales
+    const [evidenciasGenerales] = await pool.query(
+      `SELECT 
+        ep.id_evidencia,
+        ep.titulo,
+        ep.descripcion,
+        ep.tipo_archivo,
+        ep.nombre_archivo,
+        ep.url_externa,
+        ep.tamaño_archivo,
+        ep.estado_validacion,
+        ep.fecha_subida,
+        ep.fecha_limite,
+        ep.es_entrega_final,
+        'general' as tipo_evidencia,
+        p.nombre as proyecto_titulo,
+        prog.nombre as programa_nombre,
+        port.nombre as portafolio_nombre,
+        ce.nombre_categoria,
+        ce.color_hex,
+        NULL as actividad_titulo,
+        COALESCE(cm.total_comentarios, 0) as total_comentarios
+       FROM evidencias_portafolio ep
+       INNER JOIN proyectos p ON ep.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       LEFT JOIN categorias_evidencia ce ON ep.categoria_evidencia = ce.id_categoria
+       LEFT JOIN (
+         SELECT id_evidencia, COUNT(*) as total_comentarios 
+         FROM comentarios_evidencia 
+         WHERE activo = 1 
+         GROUP BY id_evidencia
+       ) cm ON ep.id_evidencia = cm.id_evidencia
+       WHERE ep.id_estudiante = ? AND ep.activo = 1`,
+      [id_estudiante]
+    );
+
+    // Obtener evidencias de actividades
+    const [evidenciasActividades] = await pool.query(
+      `SELECT 
+        ea.id_evidencia,
+        ea.titulo,
+        ea.descripcion,
+        ea.tipo_archivo,
+        ea.nombre_archivo,
+        ea.url_externa,
+        ea.tamaño_archivo,
+        ea.estado_revision as estado_validacion,
+        ea.fecha_subida,
+        NULL as fecha_limite,
+        0 as es_entrega_final,
+        'actividad' as tipo_evidencia,
+        p.nombre as proyecto_titulo,
+        prog.nombre as programa_nombre,
+        port.nombre as portafolio_nombre,
+        'Evidencia de Actividad' as nombre_categoria,
+        '#3b82f6' as color_hex,
+        ap.titulo as actividad_titulo,
+        0 as total_comentarios
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_usuario = ? AND ea.activo = 1`,
+      [id_estudiante]
+    );
+
+    // Combinar ambos tipos de evidencias
+    const todasLasEvidencias = [
+      ...evidenciasGenerales,
+      ...evidenciasActividades
+    ].sort((a, b) => new Date(b.fecha_subida) - new Date(a.fecha_subida));
+
+    res.json(todasLasEvidencias);
+
+  } catch (error) {
+    console.error('Error al obtener todas las evidencias:', error);
+    res.status(500).json({ error: "Error al obtener evidencias" });
+  }
+};
+
+export const getUnifiedEvidenceStats = async (req, res) => {
+  try {
+    const id_estudiante = req.user.id;
+
+    // Estadísticas de evidencias generales (portafolio)
+    const [statsGenerales] = await pool.query(
+      `SELECT 
+        COUNT(*) as total_evidencias_generales,
+        COUNT(CASE WHEN estado_validacion = 'aprobado' THEN 1 END) as aprobadas_generales,
+        COUNT(CASE WHEN estado_validacion = 'pendiente' THEN 1 END) as pendientes_generales,
+        COUNT(CASE WHEN estado_validacion = 'requiere_cambios' THEN 1 END) as requieren_cambios_generales,
+        COUNT(CASE WHEN estado_validacion = 'rechazado' THEN 1 END) as rechazadas_generales,
+        COUNT(CASE WHEN es_entrega_final = 1 THEN 1 END) as entregas_finales_generales,
+        COUNT(CASE WHEN fecha_limite < CURDATE() AND estado_validacion != 'aprobado' THEN 1 END) as vencidas_generales,
+        COUNT(CASE WHEN fecha_limite BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY) 
+                   AND estado_validacion != 'aprobado' THEN 1 END) as proximas_vencer_generales
+       FROM evidencias_portafolio 
+       WHERE id_estudiante = ? AND activo = 1`,
+      [id_estudiante]
+    );
+
+    // Estadísticas de evidencias de actividades
+    const [statsActividades] = await pool.query(
+      `SELECT 
+        COUNT(*) as total_evidencias_actividades,
+        COUNT(CASE WHEN estado_revision = 'aprobado' THEN 1 END) as aprobadas_actividades,
+        COUNT(CASE WHEN estado_revision = 'pendiente' THEN 1 END) as pendientes_actividades,
+        COUNT(CASE WHEN estado_revision = 'revision' THEN 1 END) as requieren_cambios_actividades,
+        COUNT(CASE WHEN estado_revision = 'rechazado' THEN 1 END) as rechazadas_actividades
+       FROM evidencias_actividad 
+       WHERE id_usuario = ? AND activo = 1`,
+      [id_estudiante]
+    );
+
+    // Combinar estadísticas
+    const statsUnificadas = {
+      // Totales combinados
+      total_evidencias: statsGenerales[0].total_evidencias_generales + statsActividades[0].total_evidencias_actividades,
+      aprobadas: statsGenerales[0].aprobadas_generales + statsActividades[0].aprobadas_actividades,
+      pendientes: statsGenerales[0].pendientes_generales + statsActividades[0].pendientes_actividades,
+      requieren_cambios: statsGenerales[0].requieren_cambios_generales + statsActividades[0].requieren_cambios_actividades,
+      rechazadas: statsGenerales[0].rechazadas_generales + statsActividades[0].rechazadas_actividades,
+      
+      // Solo de evidencias generales (las de actividades no tienen fecha límite)
+      entregas_finales: statsGenerales[0].entregas_finales_generales,
+      vencidas: statsGenerales[0].vencidas_generales,
+      proximas_vencer: statsGenerales[0].proximas_vencer_generales,
+      
+      // Desglose por tipo
+      por_tipo: {
+        generales: {
+          total: statsGenerales[0].total_evidencias_generales,
+          aprobadas: statsGenerales[0].aprobadas_generales,
+          pendientes: statsGenerales[0].pendientes_generales,
+          requieren_cambios: statsGenerales[0].requieren_cambios_generales,
+          rechazadas: statsGenerales[0].rechazadas_generales
+        },
+        actividades: {
+          total: statsActividades[0].total_evidencias_actividades,
+          aprobadas: statsActividades[0].aprobadas_actividades,
+          pendientes: statsActividades[0].pendientes_actividades,
+          requieren_cambios: statsActividades[0].requieren_cambios_actividades,
+          rechazadas: statsActividades[0].rechazadas_actividades
+        }
+      }
+    };
+
+
+    const [categorias] = await pool.query(
+      `SELECT 
+        ce.nombre_categoria,
+        ce.color_hex,
+        COUNT(ep.id_evidencia) as cantidad
+       FROM categorias_evidencia ce
+       LEFT JOIN evidencias_portafolio ep ON ce.id_categoria = ep.categoria_evidencia 
+                                          AND ep.id_estudiante = ? AND ep.activo = 1
+       WHERE ce.activa = 1
+       GROUP BY ce.id_categoria, ce.nombre_categoria, ce.color_hex
+       ORDER BY cantidad DESC`,
+      [id_estudiante]
+    );
+
+    res.json({
+      estadisticas: statsUnificadas,
+      por_categoria: categorias
+    });
+
+  } catch (error) {
+    console.error('Error al obtener estadísticas unificadas:', error);
+    res.status(500).json({ error: "Error al obtener estadísticas" });
+  }
 };

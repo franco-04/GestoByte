@@ -61,14 +61,14 @@ export const getStudentProjects = async (req, res) => {
         p.fecha_creacion,
         prog.nombre as programa_nombre,
         port.nombre as portafolio_nombre,
-        pr.rol as rol_usuario,
+        pe.rol as rol_usuario,
         (SELECT COUNT(*) FROM actividades_proyecto ap WHERE ap.id_proyecto = p.id_proyecto AND ap.activo = 1) as total_actividades,
         (SELECT COUNT(*) FROM actividades_proyecto ap WHERE ap.id_proyecto = p.id_proyecto AND ap.estado = 'completado' AND ap.activo = 1) as actividades_completadas
-       FROM proyecto_roles pr
-       INNER JOIN proyectos p ON pr.id_proyecto = p.id_proyecto
+       FROM proyecto_estudiantes pe
+       INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
        INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
-       WHERE pr.id_usuario = ? AND pr.activo = 1
+       WHERE pe.id_estudiante = ? AND p.activo = 1
        ORDER BY p.fecha_creacion DESC`,
       [id_usuario]
     );
@@ -86,10 +86,10 @@ export const getProjectActivities = async (req, res) => {
     const { id_proyecto } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso al proyecto
+    // Verificar acceso al proyecto usando proyecto_estudiantes
     const [access] = await pool.query(
-      `SELECT pr.rol FROM proyecto_roles pr 
-       WHERE pr.id_proyecto = ? AND pr.id_usuario = ? AND pr.activo = 1`,
+      `SELECT pe.rol FROM proyecto_estudiantes pe 
+       WHERE pe.id_proyecto = ? AND pe.id_estudiante = ?`,
       [id_proyecto, id_usuario]
     );
 
@@ -156,8 +156,8 @@ export const createActivity = async (req, res) => {
 
     // Verificar que el usuario es líder del proyecto
     const [access] = await pool.query(
-      `SELECT rol FROM proyecto_roles 
-       WHERE id_proyecto = ? AND id_usuario = ? AND rol = 'lider' AND activo = 1`,
+      `SELECT rol FROM proyecto_estudiantes 
+       WHERE id_proyecto = ? AND id_estudiante = ? AND rol = 'lider'`,
       [id_proyecto, id_usuario]
     );
 
@@ -225,12 +225,12 @@ export const updateActivityStatus = async (req, res) => {
 
     // Verificar acceso a la actividad
     const [access] = await pool.query(
-      `SELECT ap.id_proyecto, pr.rol, 
+      `SELECT ap.id_proyecto, pe.rol, 
               CASE WHEN aa.id_usuario IS NOT NULL THEN 1 ELSE 0 END as is_assigned
        FROM actividades_proyecto ap
-       INNER JOIN proyecto_roles pr ON ap.id_proyecto = pr.id_proyecto
+       INNER JOIN proyecto_estudiantes pe ON ap.id_proyecto = pe.id_proyecto
        LEFT JOIN actividad_asignaciones aa ON ap.id_actividad = aa.id_actividad AND aa.id_usuario = ? AND aa.activo = 1
-       WHERE ap.id_actividad = ? AND pr.id_usuario = ? AND pr.activo = 1 AND ap.activo = 1`,
+       WHERE ap.id_actividad = ? AND pe.id_estudiante = ? AND ap.activo = 1`,
       [id_usuario, id_actividad, id_usuario]
     );
 
@@ -388,8 +388,8 @@ export const getActivityEvidences = async (req, res) => {
     // Verificar acceso a la actividad
     const [access] = await pool.query(
       `SELECT ap.id_proyecto FROM actividades_proyecto ap
-       INNER JOIN proyecto_roles pr ON ap.id_proyecto = pr.id_proyecto
-       WHERE ap.id_actividad = ? AND pr.id_usuario = ? AND pr.activo = 1 AND ap.activo = 1`,
+       INNER JOIN proyecto_estudiantes pe ON ap.id_proyecto = pe.id_proyecto
+       WHERE ap.id_actividad = ? AND pe.id_estudiante = ? AND ap.activo = 1`,
       [id_actividad, id_usuario]
     );
 
@@ -437,8 +437,8 @@ export const getProjectMembers = async (req, res) => {
 
     // Verificar que el usuario es líder
     const [access] = await pool.query(
-      `SELECT rol FROM proyecto_roles 
-       WHERE id_proyecto = ? AND id_usuario = ? AND rol = 'lider' AND activo = 1`,
+      `SELECT rol FROM proyecto_estudiantes 
+       WHERE id_proyecto = ? AND id_estudiante = ? AND rol = 'lider'`,
       [id_proyecto, id_usuario]
     );
 
@@ -453,11 +453,11 @@ export const getProjectMembers = async (req, res) => {
         u.nombre,
         u.apellido,
         u.email,
-        pr.rol
-       FROM proyecto_roles pr
-       INNER JOIN usuarios u ON pr.id_usuario = u.id_usuario
-       WHERE pr.id_proyecto = ? AND pr.activo = 1
-       ORDER BY pr.rol DESC, u.nombre ASC`,
+        pe.rol
+       FROM proyecto_estudiantes pe
+       INNER JOIN usuarios u ON pe.id_estudiante = u.id_usuario
+       WHERE pe.id_proyecto = ?
+       ORDER BY pe.rol DESC, u.nombre ASC`,
       [id_proyecto]
     );
 
@@ -479,8 +479,8 @@ export const downloadEvidence = async (req, res) => {
       `SELECT ea.ruta_archivo, ea.nombre_archivo
        FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
-       INNER JOIN proyecto_roles pr ON ap.id_proyecto = pr.id_proyecto
-       WHERE ea.id_evidencia = ? AND pr.id_usuario = ? AND pr.activo = 1 AND ea.activo = 1`,
+       INNER JOIN proyecto_estudiantes pe ON ap.id_proyecto = pe.id_proyecto
+       WHERE ea.id_evidencia = ? AND pe.id_estudiante = ? AND ea.activo = 1`,
       [id_evidencia, id_usuario]
     );
 
