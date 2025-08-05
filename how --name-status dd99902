@@ -1,0 +1,32 @@
+[33mcommit dd99902e1190c37574bdc3b177938ed6a96171a2[m[33m ([m[1;36mHEAD -> [m[1;32mtemporal[m[33m, [m[1;32mdev[m[33m)[m
+Author: Marco Marquez <mmarquez@lycee.local>
+Date:   Tue Aug 5 11:09:02 2025 -0600
+
+    Mis cambios antes de cambiar a dev
+
+A	Backend/controllers/reunionesController.js
+M	Backend/middlewares/auth.js
+M	Backend/routes/authRoutes.js
+M	Backend/routes/evidenceRoutes.js
+A	Backend/uploads/evidencias-actividades/evidencia-actividad-1753313804963-742244710.pdf
+A	Backend/uploads/evidencias/evidencia-1753313741511-538524352.pdf
+M	Frontend/src/components/Evidence/EvidenceCard.jsx
+M	Frontend/src/components/Evidence/EvidenceFilters.jsx
+M	Frontend/src/components/Evidence/EvidenceGrid.jsx
+M	Frontend/src/components/Evidence/EvidenceHeader.jsx
+M	Frontend/src/components/Evidence/modals/CommentsModal.jsx
+M	Frontend/src/components/Evidence/modals/GeneralLinkModal.jsx
+M	Frontend/src/components/Evidence/modals/GeneralUploadModal.jsx
+M	Frontend/src/components/Evidence/modals/HistoryModal.jsx
+M	Frontend/src/components/Evidence/modals/ProjectLinkModal.jsx
+M	Frontend/src/components/Evidence/modals/ProjectUploadModal.jsx
+M	Frontend/src/components/EvidenceManager.jsx
+M	Frontend/src/components/KanbanBoard.jsx
+M	Frontend/src/components/NavBar.jsx
+M	Frontend/src/components/PrivateRoute.jsx
+A	Frontend/src/pages/Estudiantes/ReunionesEstudiante.jsx
+M	Frontend/src/pages/Estudiantes/StudentDashboard.jsx
+A	Frontend/src/pages/Superadmin/ReunionesManager.jsx
+M	Frontend/src/pages/Superadmin/Sidebar.jsx
+M	Frontend/src/pages/Superadmin/SuperAdminDashboard.jsx
+M	Frontend/src/services/proyectosService.js
