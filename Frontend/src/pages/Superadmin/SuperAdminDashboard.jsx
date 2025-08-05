@@ -3,6 +3,7 @@ import authService from "../../services/authService";
 import PortfolioManager from "./PortfolioManager";
 import ProgramasManager from "./ProgramasManager";
 import ProyectosManager from "./ProyectosManager";
+import ReunionesManager from "./ReunionesManager";
 import "../Superadmin/Superadmin.css";
 import Sidebar from "./Sidebar";
 
@@ -36,6 +37,105 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Stats Grid */}
+            <div className="stats-grid">
+              <div className="stat-card primary">
+                <div className="stat-icon">📚</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Total Portafolios</div>
+                </div>
+              </div>
+
+              <div className="stat-card info">
+                <div className="stat-icon">📅</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Reuniones Programadas</div>
+                </div>
+              </div>
+
+              <div className="stat-card success">
+                <div className="stat-icon">👥</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Estudiantes Activos</div>
+                </div>
+              </div>
+
+              <div className="stat-card warning">
+                <div className="stat-icon">🏫</div>
+                <div className="stat-content">
+                  <div className="stat-number">-</div>
+                  <div className="stat-label">Programas Activos</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-grid">
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Acciones Rápidas</h3>
+                </div>
+                <div className="card-content">
+                  <div className="quick-actions">
+                    <button 
+                      className="action-btn primary"
+                      onClick={() => setVista('portafolios')}
+                    >
+                      <div className="action-icon">📚</div>
+                      Gestionar Portafolios
+                    </button>
+                    <button 
+                      className="action-btn info"
+                      onClick={() => setVista('reuniones')}
+                    >
+                      <div className="action-icon">📅</div>
+                      Programar Reunión
+                    </button>
+                    <button 
+                      className="action-btn success"
+                      onClick={() => setVista('programas')}
+                    >
+                      <div className="action-icon">🏫</div>
+                      Gestionar Programas
+                    </button>
+                    <button 
+                      className="action-btn warning"
+                      onClick={() => setVista('proyectos')}
+                    >
+                      <div className="action-icon">📊</div>
+                      Gestionar Proyectos
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Sistema</h3>
+                </div>
+                <div className="card-content">
+                  <div className="activity-list">
+                    <div className="activity-item success">
+                      <div className="activity-dot"></div>
+                      <div className="activity-content">
+                        <p className="activity-message">Sistema funcionando correctamente</p>
+                        <span className="activity-time">Ahora</span>
+                      </div>
+                    </div>
+                    <div className="activity-item info">
+                      <div className="activity-dot"></div>
+                      <div className="activity-content">
+                        <p className="activity-message">Acceso como Administrador</p>
+                        <span className="activity-time">Sesión activa</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -44,6 +144,9 @@ export default function AdminDashboard() {
         {vista === "programas" && <ProgramasManager />}
 
         {vista === "proyectos" && <ProyectosManager />}
+
+        {/* 🔥 NUEVA SECCIÓN PARA REUNIONES */}
+        {vista === "reuniones" && <ReunionesManager />}
 
         {vista === "reportes" && (
           <div className="coming-soon">

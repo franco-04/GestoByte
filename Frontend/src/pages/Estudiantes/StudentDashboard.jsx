@@ -13,6 +13,7 @@ import {
   AiOutlineClockCircle
 } from 'react-icons/ai';
 import authService from '../../services/authService';
+import ReunionesEstudiante from './ReunionesEstudiante';
 import api from '../../api/api';
 import EvidenceManager from '../../components/EvidenceManager';
 import KanbanBoard from '../../components/KanbanBoard';
@@ -46,10 +47,17 @@ export default function StudentDashboard() {
   // Estados para navegación
   const [selectedProject, setSelectedProject] = useState(null);
 
+  // Estados para reuniones
+  const [reunionesStats, setReunionesStats] = useState({
+    proximas: 0,
+    pendientesConfirmar: 0
+  });
+
   useEffect(() => {
     fetchMisProyectos();
     fetchAlertas();
     fetchEvidenceStats();
+    fetchReunionesStats();
   }, []);
 
   const fetchMisProyectos = async () => {
@@ -76,20 +84,20 @@ export default function StudentDashboard() {
     }
   };
 
-const fetchEvidenceStats = async () => {
-  try {
-    const res = await api.get("/auth/student/evidencias/stats-unificadas"); // 🔥 NUEVA RUTA
-    setEvidenceStats(res.data);
-    setStats(prev => ({
-      ...prev,
-      totalEvidencias: res.data.estadisticas.total_evidencias,
-      evidenciasAprobadas: res.data.estadisticas.aprobadas,
-      evidenciasPendientes: res.data.estadisticas.pendientes
-    }));
-  } catch (error) {
-    console.error("Error al obtener estadísticas de evidencias:", error);
-  }
-};
+  const fetchEvidenceStats = async () => {
+    try {
+      const res = await api.get("/auth/student/evidencias/stats-unificadas"); // 🔥 NUEVA RUTA
+      setEvidenceStats(res.data);
+      setStats(prev => ({
+        ...prev,
+        totalEvidencias: res.data.estadisticas.total_evidencias,
+        evidenciasAprobadas: res.data.estadisticas.aprobadas,
+        evidenciasPendientes: res.data.estadisticas.pendientes
+      }));
+    } catch (error) {
+      console.error("Error al obtener estadísticas de evidencias:", error);
+    }
+  };
 
   const fetchAlertas = async () => {
     try {
@@ -101,6 +109,32 @@ const fetchEvidenceStats = async () => {
       }));
     } catch (error) {
       console.error("Error al obtener alertas:", error);
+    }
+  };
+
+  const fetchReunionesStats = async () => {
+    try {
+      const res = await api.get("/auth/reuniones/estudiante");
+      const reuniones = res.data;
+      const ahora = new Date();
+      
+      const proximas = reuniones.filter(r => new Date(r.fecha_reunion) > ahora).length;
+      const pendientes = reuniones.filter(r => !r.confirmado && new Date(r.fecha_reunion) > ahora).length;
+      
+      setReunionesStats({
+        proximas,
+        pendientesConfirmar: pendientes
+      });
+    } catch (error) {
+      console.error("Error al obtener estadísticas de reuniones:", error);
+      // Si la ruta no existe, establecer valores por defecto
+      if (error.response?.status === 404) {
+        console.warn("La ruta de reuniones no está implementada en el backend");
+        setReunionesStats({
+          proximas: 0,
+          pendientesConfirmar: 0
+        });
+      }
     }
   };
 
@@ -169,6 +203,18 @@ const fetchEvidenceStats = async () => {
             }}
           >
             <AiOutlineFileText className="sidebar-icon" /> Mis Evidencias
+          </button>
+          <button
+            className={`sidebar-button${vista === 'reuniones' ? ' active' : ''}`}
+            onClick={() => {
+              setVista('reuniones');
+              setSelectedProject(null);
+              clearMessages();
+            }}
+          >
+            <AiOutlineCalendar className="sidebar-icon" /> 
+            Mis Reuniones
+            {reunionesStats.pendientesConfirmar > 0 && <span className="alert-badge">{reunionesStats.pendientesConfirmar}</span>}
           </button>
           <button
             className={`sidebar-button${vista === 'perfil' ? ' active' : ''}`}
@@ -259,10 +305,10 @@ const fetchEvidenceStats = async () => {
               </div>
 
               <div className="stat-card warning">
-                <div className="stat-icon">📋</div>
+                <div className="stat-icon">📅</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.actividadesTotales}</div>
-                  <div className="stat-label">Actividades Totales</div>
+                  <div className="stat-number">{reunionesStats.proximas}</div>
+                  <div className="stat-label">Reuniones Próximas</div>
                 </div>
               </div>
             </div>
@@ -354,6 +400,47 @@ const fetchEvidenceStats = async () => {
                   ) : (
                     <div className="empty-state">
                       <p>Cargando estadísticas de evidencias...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Reuniones Próximas */}
+              <div className="dashboard-card">
+                <div className="card-header">
+                  <h3>Reuniones Próximas</h3>
+                </div>
+                <div className="card-content">
+                  {reunionesStats.proximas === 0 ? (
+                    <div className="empty-state">
+                      <div className="empty-icon">📅</div>
+                      <h4>No tienes reuniones próximas</h4>
+                      <p>¡Todo al día!</p>
+                    </div>
+                  ) : (
+                    <div className="reuniones-preview">
+                      <div className="stat-row">
+                        <span className="stat-label">Total próximas:</span>
+                        <span className="stat-value info">{reunionesStats.proximas}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Pendientes de confirmar:</span>
+                        <span className="stat-value warning">{reunionesStats.pendientesConfirmar}</span>
+                      </div>
+                      <div className="stat-row">
+                        <span className="stat-label">Confirmadas:</span>
+                        <span className="stat-value success">{reunionesStats.proximas - reunionesStats.pendientesConfirmar}</span>
+                      </div>
+                      {reunionesStats.pendientesConfirmar > 0 && (
+                        <div className="view-all-meetings">
+                          <button 
+                            className="btn btn-warning btn-sm"
+                            onClick={() => setVista('reuniones')}
+                          >
+                            Confirmar reuniones pendientes
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -535,6 +622,19 @@ const fetchEvidenceStats = async () => {
           </div>
         )}
 
+        {/* Vista de Reuniones */}
+        {vista === 'reuniones' && (
+          <div className="admin-section">
+            <div className="admin-header">
+              <h1>Mis Reuniones</h1>
+              <p className="admin-subtitle">
+                Gestiona tus reuniones programadas
+              </p>
+            </div>
+            <ReunionesEstudiante />
+          </div>
+        )}
+
         {/* Vista de Perfil */}
         {vista === 'perfil' && (
           <div className="admin-section">
@@ -612,8 +712,8 @@ const fetchEvidenceStats = async () => {
                         <span className="stat-label">Evidencias Aprobadas</span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{stats.alertasActivas}</span>
-                        <span className="stat-label">Alertas Activas</span>
+                        <span className="stat-number">{reunionesStats.proximas}</span>
+                        <span className="stat-label">Reuniones Próximas</span>
                       </div>
                     </div>
                   </div>

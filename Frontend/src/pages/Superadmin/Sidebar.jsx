@@ -4,6 +4,7 @@ import {
   AiOutlineUsergroupAdd,
   AiOutlineLineChart,
   AiFillSetting,
+  AiOutlineCalendar
 } from "react-icons/ai";
 import logo from "../../assets/log.png";
 
@@ -39,6 +40,14 @@ export default function Sidebar({ vista, setVista }) {
         >
           <AiOutlineLineChart className="sidebar-icon" /> Gestion de Proyectos
         </button>
+
+        <button
+            className={`sidebar-button${vista === 'reuniones' ? ' active' : ''}`}
+            onClick={() => setVista('reuniones')}
+          >
+          <AiOutlineCalendar className="sidebar-icon" /> Reuniones
+        </button>
+        
         <button
           className={`sidebar-button${vista === "configuracion" ? " active" : ""}`}
           onClick={() => setVista("configuracion")}

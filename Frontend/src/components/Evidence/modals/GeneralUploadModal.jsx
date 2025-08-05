@@ -189,6 +189,7 @@ const GeneralUploadModal = ({
               className="btn btn-primary"
               disabled={uploading}
             >
+              
               {uploading ? (
                 'Subiendo...'
               ) : (

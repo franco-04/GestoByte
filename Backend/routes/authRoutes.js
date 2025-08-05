@@ -70,8 +70,18 @@ import {
   upload as uploadActivity
 } from '../controllers/activitiesController.js';
 
+import {
+  crearReunion,
+  getReunionesCoordinador,
+  getReunionesEstudiante,
+  confirmarAsistencia,
+  actualizarReunion,
+  getDetalleReunion,
+  getEstadisticasReuniones
+} from '../controllers/reunionesController.js';
+
 import { getEstudiantesByCarrera } from '../controllers/studentController.js';
-import { authenticate } from '../middlewares/auth.js';
+import { authenticate, canCreateMeetings, isStudent } from '../middlewares/auth.js';
 
 const router = express.Router();
 
@@ -146,5 +156,13 @@ router.get('/activities/project/:id_proyecto/members', authenticate, getProjectM
 router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
 router.get('/student/evidencias/todas-unificadas', authenticate, getAllStudentEvidencesUnified);
 router.get('/student/evidencias/stats-unificadas', authenticate, getUnifiedEvidenceStats);
+
+router.post('/reuniones', authenticate, canCreateMeetings, crearReunion);
+router.get('/reuniones/coordinador', authenticate, canCreateMeetings, getReunionesCoordinador);
+router.get('/reuniones/estudiante', authenticate, isStudent, getReunionesEstudiante);
+router.get('/reuniones/stats', authenticate, canCreateMeetings, getEstadisticasReuniones);
+router.get('/reuniones/:id_reunion', authenticate, getDetalleReunion);
+router.put('/reuniones/:id_reunion', authenticate, canCreateMeetings, actualizarReunion);
+router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirmarAsistencia);
 
 export default router;

@@ -74,6 +74,7 @@ const HistoryModal = ({ isOpen, onClose, evidence, history }) => {
           )}
         </div>
         
+        
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>
             Cerrar

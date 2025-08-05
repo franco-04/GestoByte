@@ -687,4 +687,5 @@ const KanbanBoard = ({ projectId, userRole }) => {
   );
 };
 
+
 export default KanbanBoard;

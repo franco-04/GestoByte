@@ -200,6 +200,7 @@ const EvidenceCard = ({
             onClick={() => onOpenHistory(evidencia)}
             title="Ver historial"
           >
+            
             <AiOutlineHistory />
           </button>
         )}

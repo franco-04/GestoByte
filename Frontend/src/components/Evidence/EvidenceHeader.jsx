@@ -51,6 +51,7 @@ const EvidenceHeader = ({
             >
               <AiOutlineUpload /> Subir Evidencia General
             </button>
+            
             <button 
               className="btn btn-secondary"
               onClick={onShowGeneralLinkModal}

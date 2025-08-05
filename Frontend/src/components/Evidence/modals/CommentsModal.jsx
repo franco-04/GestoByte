@@ -52,6 +52,7 @@ const CommentsModal = ({ isOpen, onClose, evidence, comments }) => {
           )}
         </div>
         
+        
         <div className="modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>
             Cerrar

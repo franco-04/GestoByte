@@ -39,7 +39,5 @@ router.get('/evidencias/stats', authenticate, getStudentEvidenceStats);
 router.get('/evidencias/notificaciones', authenticate, getEvidenceNotifications);
 router.put('/evidencias/notificaciones/:id_notificacion/read', authenticate, markNotificationAsRead);
 
-
-
 router.get('/auth/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
 export default router;

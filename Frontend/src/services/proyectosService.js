@@ -65,7 +65,7 @@ const proyectosService = {
   // 7. Obtener programas por portafolio
   getProgramasByPortafolio: async (id) => {
     try {
-      const res = await api.get(`/auth/portafolios/${id}/programas`);
+      const res = await api.get(`/auth/portafolios/${id}/programas`); 
       return res.data;
     } catch (error) {
       throw errorHandler(error);

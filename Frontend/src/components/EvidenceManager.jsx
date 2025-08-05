@@ -287,4 +287,5 @@ const EvidenceManager = ({ selectedProject = null }) => {
   );
 };
 
+
 export default EvidenceManager;

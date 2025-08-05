@@ -65,6 +65,7 @@ const EvidenceFilters = ({
           <option value="aprobado">Aprobado</option>
           <option value="requiere_cambios">Requiere Cambios</option>
           <option value="rechazado">Rechazado</option>
+          
         </select>
         
         <select
