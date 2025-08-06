@@ -13,7 +13,7 @@ export default function Sidebar({ vista, setVista }) {
     <aside className="sidebar">
       <div className="sidebar-header">
         <img src={logo} alt="Logo" className="sidebar-logo" />
-        <h2>Panel de Coordinadores</h2>
+        <h2>Panel de Superadmin</h2>
       </div>
       <nav className="sidebar-nav">
         <button
