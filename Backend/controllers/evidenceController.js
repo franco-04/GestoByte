@@ -93,14 +93,14 @@ export const uploadEvidence = async (req, res) => {
     const { id_proyecto, titulo, descripcion, categoria_evidencia, fecha_limite, es_entrega_final } = req.body;
     const id_estudiante = req.user.id;
 
-    // Verificar que el estudiante pertenece al proyecto
+   
     const [access] = await pool.query(
-      `SELECT pe.id_usuario 
-       FROM proyecto_estudiantes pe 
-       INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_proyecto = ? AND pe.id_usuario = ? AND p.activo = 1`,
-      [id_proyecto, id_estudiante]
-    );
+  `SELECT pe.id_estudiante 
+   FROM proyecto_estudiantes pe 
+   INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
+   WHERE pe.id_proyecto = ? AND pe.id_estudiante = ? AND p.activo = 1`, 
+  [id_proyecto, id_estudiante]
+);
 
     if (access.length === 0) {
       return res.status(403).json({ error: "No tienes acceso a este proyecto" });
@@ -123,13 +123,13 @@ export const uploadEvidence = async (req, res) => {
        rutaArchivo, tamañoArchivo, categoria_evidencia, fecha_limite || null, es_entrega_final || 0]
     );
 
-    // Crear notificación para asesores
-    await pool.query(
-      `INSERT INTO notificaciones_evidencia (id_evidencia, id_usuario_destino, id_usuario_origen, tipo_notificacion, titulo, mensaje)
-       SELECT ?, p.id_asesor, ?, 'nueva_evidencia', 'Nueva evidencia subida', ?
-       FROM proyectos p WHERE p.id_proyecto = ? AND p.id_asesor IS NOT NULL`,
-      [result.insertId, id_estudiante, `El estudiante ha subido: ${titulo}`, id_proyecto]
-    );
+  
+/* await pool.query(
+  `INSERT INTO notificaciones_evidencia (id_evidencia, id_usuario_destino, id_usuario_origen, tipo_notificacion, titulo, mensaje)
+   SELECT ?, p.id_asesor, ?, 'nueva_evidencia', 'Nueva evidencia subida', ?
+   FROM proyectos p WHERE p.id_proyecto = ? AND p.id_asesor IS NOT NULL`,
+  [result.insertId, id_estudiante, `El estudiante ha subido: ${titulo}`, id_proyecto]
+); */
 
     res.status(201).json({
       success: true,
@@ -150,13 +150,13 @@ export const uploadEvidenceLink = async (req, res) => {
     const id_estudiante = req.user.id;
 
     // Verificar acceso al proyecto
-    const [access] = await pool.query(
-      `SELECT pe.id_usuario 
-       FROM proyecto_estudiantes pe 
-       INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
-       WHERE pe.id_proyecto = ? AND pe.id_usuario = ? AND p.activo = 1`,
-      [id_proyecto, id_estudiante]
-    );
+   const [access] = await pool.query(
+  `SELECT pe.id_estudiante 
+   FROM proyecto_estudiantes pe 
+   INNER JOIN proyectos p ON pe.id_proyecto = p.id_proyecto
+   WHERE pe.id_proyecto = ? AND pe.id_estudiante = ? AND p.activo = 1`, // CAMBIO: id_estudiante
+  [id_proyecto, id_estudiante]
+);
 
     if (access.length === 0) {
       return res.status(403).json({ error: "No tienes acceso a este proyecto" });
@@ -197,12 +197,12 @@ export const getStudentEvidences = async (req, res) => {
     const id_estudiante = req.user.id;
 
     // Verificar acceso
-    const [access] = await pool.query(
-      `SELECT pe.id_usuario 
-       FROM proyecto_estudiantes pe 
-       WHERE pe.id_proyecto = ? AND pe.id_usuario = ?`,
-      [id_proyecto, id_estudiante]
-    );
+   const [access] = await pool.query(
+  `SELECT pe.id_estudiante 
+   FROM proyecto_estudiantes pe 
+   WHERE pe.id_proyecto = ? AND pe.id_estudiante = ?`, // CAMBIO: id_estudiante
+  [id_proyecto, id_estudiante]
+);
 
     if (access.length === 0) {
       return res.status(403).json({ error: "No tienes acceso a este proyecto" });
@@ -288,15 +288,15 @@ export const getAllStudentEvidences = async (req, res) => {
   }
 };
 
-// Obtener comentarios de una evidencia
+// En evidenceController.js, corregir getEvidenceComments
 export const getEvidenceComments = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar que el usuario tiene acceso a la evidencia
+    // CORREGIDO: Verificar acceso sin id_asesor
     const [access] = await pool.query(
-      `SELECT ep.id_estudiante, p.id_asesor, port.id_coordinador
+      `SELECT ep.id_estudiante, port.id_coordinador
        FROM evidencias_portafolio ep
        INNER JOIN proyectos p ON ep.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
@@ -309,8 +309,9 @@ export const getEvidenceComments = async (req, res) => {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { id_estudiante, id_asesor, id_coordinador } = access[0];
-    const hasAccess = id_usuario === id_estudiante || id_usuario === id_asesor || id_usuario === id_coordinador;
+    // CORREGIDO: Solo verificar estudiante y coordinador
+    const { id_estudiante, id_coordinador } = access[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
 
     if (!hasAccess) {
       return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
@@ -331,7 +332,7 @@ export const getEvidenceComments = async (req, res) => {
        WHERE cm.id_evidencia = ? 
        AND (cm.es_privado = 0 OR ? = ? OR ? = ?) 
        ORDER BY cm.fecha_comentario ASC`,
-      [id_evidencia, id_usuario, id_coordinador, id_usuario, id_asesor]
+      [id_evidencia, id_usuario, id_coordinador, id_usuario, id_coordinador]
     );
 
     res.json(comentarios);
@@ -341,16 +342,15 @@ export const getEvidenceComments = async (req, res) => {
     res.status(500).json({ error: "Error al obtener comentarios" });
   }
 };
-
-// Descargar archivo de evidencia
+// En evidenceController.js, corregir la función downloadEvidence
 export const downloadEvidence = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso
+    // CORREGIDO: Verificar acceso sin usar id_asesor
     const [evidencia] = await pool.query(
-      `SELECT ep.ruta_archivo, ep.nombre_archivo, ep.id_estudiante, p.id_asesor, port.id_coordinador
+      `SELECT ep.ruta_archivo, ep.nombre_archivo, ep.id_estudiante, port.id_coordinador
        FROM evidencias_portafolio ep
        INNER JOIN proyectos p ON ep.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
@@ -363,8 +363,9 @@ export const downloadEvidence = async (req, res) => {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { ruta_archivo, nombre_archivo, id_estudiante, id_asesor, id_coordinador } = evidencia[0];
-    const hasAccess = id_usuario === id_estudiante || id_usuario === id_asesor || id_usuario === id_coordinador;
+    // CORREGIDO: Solo verificar estudiante y coordinador por ahora
+    const { ruta_archivo, nombre_archivo, id_estudiante, id_coordinador } = evidencia[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
 
     if (!hasAccess) {
       return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
@@ -388,7 +389,6 @@ export const downloadEvidence = async (req, res) => {
     res.status(500).json({ error: "Error al descargar evidencia" });
   }
 };
-
 // Eliminar evidencia (solo estudiante propietario)
 export const deleteEvidence = async (req, res) => {
   try {
@@ -480,15 +480,15 @@ export const updateEvidence = async (req, res) => {
   }
 };
 
-// Obtener historial de una evidencia
+// En evidenceController.js, corregir getEvidenceHistory
 export const getEvidenceHistory = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso
+    // CORREGIDO: Verificar acceso sin id_asesor
     const [access] = await pool.query(
-      `SELECT ep.id_estudiante, p.id_asesor, port.id_coordinador
+      `SELECT ep.id_estudiante, port.id_coordinador
        FROM evidencias_portafolio ep
        INNER JOIN proyectos p ON ep.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
@@ -501,8 +501,9 @@ export const getEvidenceHistory = async (req, res) => {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { id_estudiante, id_asesor, id_coordinador } = access[0];
-    const hasAccess = id_usuario === id_estudiante || id_usuario === id_asesor || id_usuario === id_coordinador;
+    // CORREGIDO: Solo verificar estudiante y coordinador
+    const { id_estudiante, id_coordinador } = access[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
 
     if (!hasAccess) {
       return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
@@ -532,7 +533,6 @@ export const getEvidenceHistory = async (req, res) => {
     res.status(500).json({ error: "Error al obtener historial" });
   }
 };
-
 // Obtener estadísticas de evidencias del estudiante
 export const getStudentEvidenceStats = async (req, res) => {
   try {

@@ -66,6 +66,7 @@ import {
   uploadActivityEvidence,
   getActivityEvidences,
   getProjectMembers,
+   reviewEvidence,
   downloadEvidence as downloadActivityEvidence,
   upload as uploadActivity
 } from '../controllers/activitiesController.js';
@@ -77,7 +78,11 @@ import {
   confirmarAsistencia,
   actualizarReunion,
   getDetalleReunion,
-  getEstadisticasReuniones
+  getEstadisticasReuniones,
+  getProyectosParaReuniones,       
+  getEstudiantesProyectoReunion,
+  getDetalleProyectoCoordinador,
+  getProyectoActividadesCoordinador    
 } from '../controllers/reunionesController.js';
 
 import { getEstudiantesByCarrera } from '../controllers/studentController.js';
@@ -161,8 +166,20 @@ router.post('/reuniones', authenticate, canCreateMeetings, crearReunion);
 router.get('/reuniones/coordinador', authenticate, canCreateMeetings, getReunionesCoordinador);
 router.get('/reuniones/estudiante', authenticate, isStudent, getReunionesEstudiante);
 router.get('/reuniones/stats', authenticate, canCreateMeetings, getEstadisticasReuniones);
+
+
+router.get('/reuniones/proyectos', authenticate, canCreateMeetings, getProyectosParaReuniones);
+router.get('/reuniones/proyectos/:id_proyecto/estudiantes', authenticate, canCreateMeetings, getEstudiantesProyectoReunion);
+
+
 router.get('/reuniones/:id_reunion', authenticate, getDetalleReunion);
 router.put('/reuniones/:id_reunion', authenticate, canCreateMeetings, actualizarReunion);
 router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirmarAsistencia);
+
+router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
+router.get('/proyectos/:id_proyecto/actividades', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
+
+router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
+
 
 export default router;

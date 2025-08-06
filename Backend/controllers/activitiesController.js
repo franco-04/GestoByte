@@ -380,20 +380,32 @@ export const uploadActivityEvidence = async (req, res) => {
 };
 
 // Obtener evidencias de una actividad
+// Modificar la función getActivityEvidences en activitiesController.js
 export const getActivityEvidences = async (req, res) => {
   try {
     const { id_actividad } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso a la actividad
-    const [access] = await pool.query(
+    // MODIFICADO: Verificar acceso tanto para estudiantes como coordinadores
+    const [accessStudent] = await pool.query(
       `SELECT ap.id_proyecto FROM actividades_proyecto ap
        INNER JOIN proyecto_estudiantes pe ON ap.id_proyecto = pe.id_proyecto
        WHERE ap.id_actividad = ? AND pe.id_estudiante = ? AND ap.activo = 1`,
       [id_actividad, id_usuario]
     );
 
-    if (access.length === 0) {
+    // NUEVO: Verificar acceso para coordinadores
+    const [accessCoordinator] = await pool.query(
+      `SELECT ap.id_proyecto FROM actividades_proyecto ap
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ap.id_actividad = ? AND port.id_coordinador = ? AND ap.activo = 1`,
+      [id_actividad, id_usuario]
+    );
+
+    // Si no tiene acceso ni como estudiante ni como coordinador
+    if (accessStudent.length === 0 && accessCoordinator.length === 0) {
       return res.status(403).json({ error: "No tienes acceso a esta actividad" });
     }
 
@@ -428,7 +440,6 @@ export const getActivityEvidences = async (req, res) => {
     res.status(500).json({ error: "Error al obtener evidencias" });
   }
 };
-
 // Obtener miembros del proyecto para asignación
 export const getProjectMembers = async (req, res) => {
   try {
@@ -468,14 +479,14 @@ export const getProjectMembers = async (req, res) => {
   }
 };
 
-// Descargar evidencia
+// Modificar la función downloadEvidence en activitiesController.js
 export const downloadEvidence = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso
-    const [evidencia] = await pool.query(
+    // MODIFICADO: Verificar acceso para estudiantes
+    const [accessStudent] = await pool.query(
       `SELECT ea.ruta_archivo, ea.nombre_archivo
        FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
@@ -484,11 +495,27 @@ export const downloadEvidence = async (req, res) => {
       [id_evidencia, id_usuario]
     );
 
-    if (evidencia.length === 0) {
+    // NUEVO: Verificar acceso para coordinadores
+    const [accessCoordinator] = await pool.query(
+      `SELECT ea.ruta_archivo, ea.nombre_archivo
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND port.id_coordinador = ? AND ea.activo = 1`,
+      [id_evidencia, id_usuario]
+    );
+
+    // Tomar el resultado que tenga datos
+    const evidencia = accessStudent.length > 0 ? accessStudent[0] : 
+                     accessCoordinator.length > 0 ? accessCoordinator[0] : null;
+
+    if (!evidencia) {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { ruta_archivo, nombre_archivo } = evidencia[0];
+    const { ruta_archivo, nombre_archivo } = evidencia;
 
     if (!ruta_archivo) {
       return res.status(400).json({ error: "Esta evidencia es un link externo" });
@@ -504,5 +531,42 @@ export const downloadEvidence = async (req, res) => {
   } catch (error) {
     console.error('Error al descargar evidencia:', error);
     res.status(500).json({ error: "Error al descargar evidencia" });
+  }
+};
+
+// NUEVA FUNCIÓN: Permitir que coordinadores revisen evidencias
+export const reviewEvidence = async (req, res) => {
+  try {
+    const { id_evidencia } = req.params;
+    const { estado_revision, comentarios_revision } = req.body;
+    const id_coordinador = req.user.id;
+
+    // Verificar que el coordinador tenga acceso
+    const [access] = await pool.query(
+      `SELECT ea.id_evidencia FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND port.id_coordinador = ? AND ea.activo = 1`,
+      [id_evidencia, id_coordinador]
+    );
+
+    if (access.length === 0) {
+      return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
+    }
+
+    // Actualizar la evidencia
+    await pool.query(
+      `UPDATE evidencias_actividad 
+       SET estado_revision = ?, comentarios_revision = ?, id_revisor = ?, fecha_revision = NOW()
+       WHERE id_evidencia = ?`,
+      [estado_revision, comentarios_revision, id_coordinador, id_evidencia]
+    );
+
+    res.json({ success: true, message: "Evidencia revisada correctamente" });
+  } catch (error) {
+    console.error('Error al revisar evidencia:', error);
+    res.status(500).json({ error: "Error al revisar evidencia" });
   }
 };

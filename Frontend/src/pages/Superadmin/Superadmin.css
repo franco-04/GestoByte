@@ -1194,3 +1194,294 @@
   height: 100px;
   margin-bottom: 15px;
 }
+
+/* Estilos para la vista de detalle del proyecto */
+.project-info .info-row {
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.project-info .info-row:last-child {
+  border-bottom: none;
+}
+
+.members-list .member-item {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #f9fafb;
+}
+
+.member-info .member-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.role-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.role-badge.leader {
+  background: #f59e0b;
+  color: white;
+}
+
+.activities-list .activity-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: white;
+}
+
+.activity-header {
+  display: flex;
+  justify-content: between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.activity-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.status-badge, .priority-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: white;
+  font-weight: bold;
+}
+
+.meetings-list .meeting-item {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #f9fafb;
+}
+
+.meeting-details {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.meeting-details > div {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kanban-container {
+  margin-top: 1rem;
+}
+
+/* Estilos adicionales para KanbanBoard coordinadores */
+
+.coordinator-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: bold;
+  margin-left: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kanban-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.kanban-stats .stat-item {
+  text-align: center;
+  flex: 1;
+}
+
+.kanban-stats .stat-number {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.kanban-stats .stat-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.activity-card .meta-item.creator {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.activity-card .creator-label {
+  font-weight: bold;
+  color: #6b7280;
+  margin-right: 0.25rem;
+}
+
+.activity-card .meta-item.overdue {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.activity-card .stat-badge.evidences {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Modal de detalle de actividad */
+.activity-detail-content {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section h4 {
+  margin-bottom: 1rem;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.detail-item span {
+  color: #1f2937;
+}
+
+.detail-item .overdue {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
+}
+
+.status-badge.pendiente {
+  background: #f59e0b;
+}
+
+.status-badge.en_progreso {
+  background: #3b82f6;
+}
+
+.status-badge.revision {
+  background: #8b5cf6;
+}
+
+.status-badge.completado {
+  background: #10b981;
+}
+
+.assignees-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.assignee-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.stats-grid .stat-item {
+  text-align: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.stats-grid .stat-number {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.stats-grid .stat-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .kanban-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .coordinator-badge {
+    display: none;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

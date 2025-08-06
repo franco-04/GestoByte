@@ -15,11 +15,16 @@ import {
   AiOutlineClose,
   AiOutlineEye,
   AiOutlineClockCircle,
-  AiOutlineWarning
+  AiOutlineWarning,
+  AiOutlineTrophy
 } from 'react-icons/ai';
 import api from '../api/api';
 
-const KanbanBoard = ({ projectId, userRole }) => {
+const KanbanBoard = ({ 
+  projectId, 
+  userRole = 'estudiante', 
+  apiEndpoint = null // Nueva prop para endpoint personalizado
+}) => {
   const [activities, setActivities] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,6 +35,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
   const [showEvidenceListModal, setShowEvidenceListModal] = useState(false);
+  const [showActivityDetailModal, setShowActivityDetailModal] = useState(false); // Nuevo modal
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [evidences, setEvidences] = useState([]);
 
@@ -67,20 +73,24 @@ const KanbanBoard = ({ projectId, userRole }) => {
   useEffect(() => {
     if (projectId) {
       fetchActivities();
-      if (userRole === 'lider') {
+      // Cargar miembros si es líder o coordinador
+      if (userRole === 'lider' || userRole === 'coordinador') {
         fetchProjectMembers();
       }
     }
   }, [projectId, userRole]);
 
+  // MODIFICADO: Usar endpoint personalizado si existe
   const fetchActivities = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/auth/activities/project/${projectId}`);
+      const endpoint = apiEndpoint || `/auth/activities/project/${projectId}`;
+      console.log('🔍 Fetching activities from:', endpoint);
+      const res = await api.get(endpoint);
       setActivities(res.data.actividades || []);
     } catch (error) {
       setError("Error al cargar actividades");
-      console.error(error);
+      console.error('Error fetching activities:', error);
     } finally {
       setLoading(false);
     }
@@ -162,6 +172,12 @@ const KanbanBoard = ({ projectId, userRole }) => {
     }
   };
 
+  // NUEVA FUNCIÓN: Ver detalles completos de la actividad
+  const handleViewActivityDetail = (activity) => {
+    setSelectedActivity(activity);
+    setShowActivityDetailModal(true);
+  };
+
   const handleDownloadEvidence = async (evidenceId, fileName) => {
     try {
       const response = await api.get(`/auth/activities/evidence/${evidenceId}/download`, {
@@ -205,6 +221,11 @@ const KanbanBoard = ({ projectId, userRole }) => {
     return new Date(dateString).toLocaleDateString('es-ES');
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleString('es-ES');
+  };
+
   const isOverdue = (dateString) => {
     if (!dateString) return false;
     return new Date(dateString) < new Date();
@@ -215,12 +236,29 @@ const KanbanBoard = ({ projectId, userRole }) => {
     return estadoObj ? estadoObj.color : '#6b7280';
   };
 
+  // MODIFICADO: Permisos mejorados según el rol
   const canEditActivity = (activity) => {
-    return userRole === 'lider' || activity.puede_editar;
+    if (userRole === 'coordinador') return true; // Coordinadores pueden editar todo
+    if (userRole === 'lider') return true; // Líderes pueden editar todo
+    return activity.puede_editar; // Estudiantes según su asignación
+  };
+
+  const canCreateActivities = () => {
+    return userRole === 'coordinador' || userRole === 'lider';
   };
 
   const canUploadEvidence = (activity) => {
+    if (userRole === 'coordinador') return false; // Coordinadores no suben evidencias
     return activity.puede_subir_evidencia;
+  };
+
+  const canApproveActivities = () => {
+    return userRole === 'coordinador' || userRole === 'lider';
+  };
+
+  // NUEVA FUNCIÓN: Obtener el icono del rol
+  const getRoleIcon = (rol) => {
+    return rol === 'lider' ? <AiOutlineTrophy style={{ color: '#f59e0b' }} /> : <AiOutlineUser />;
   };
 
   const groupedActivities = estados.reduce((acc, estado) => {
@@ -238,13 +276,21 @@ const KanbanBoard = ({ projectId, userRole }) => {
 
   return (
     <div className="kanban-board">
-      {/* Header */}
+      {/* Header mejorado */}
       <div className="kanban-header">
         <div className="kanban-title">
-          <h2>Tablero de Actividades</h2>
-          <p>Gestiona las tareas y actividades del proyecto</p>
+          <h2>
+            Tablero de Actividades
+            {userRole === 'coordinador' && <span className="coordinator-badge">👑 Vista Coordinador</span>}
+          </h2>
+          <p>
+            {userRole === 'coordinador' 
+              ? 'Supervisión y gestión de actividades del proyecto'
+              : 'Gestiona las tareas y actividades del proyecto'
+            }
+          </p>
         </div>
-        {userRole === 'lider' && (
+        {canCreateActivities() && (
           <button 
             className="btn btn-primary"
             onClick={() => setShowCreateModal(true)}
@@ -253,6 +299,28 @@ const KanbanBoard = ({ projectId, userRole }) => {
           </button>
         )}
       </div>
+
+      {/* Estadísticas rápidas para coordinadores */}
+      {userRole === 'coordinador' && activities.length > 0 && (
+        <div className="kanban-stats">
+          <div className="stat-item">
+            <span className="stat-number">{activities.length}</span>
+            <span className="stat-label">Total</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{activities.filter(a => a.estado === 'completado').length}</span>
+            <span className="stat-label">Completadas</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{activities.filter(a => a.estado === 'en_progreso').length}</span>
+            <span className="stat-label">En Progreso</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{activities.filter(a => a.fecha_limite && isOverdue(a.fecha_limite)).length}</span>
+            <span className="stat-label">Vencidas</span>
+          </div>
+        </div>
+      )}
 
       {/* Alertas */}
       {error && (
@@ -299,13 +367,27 @@ const KanbanBoard = ({ projectId, userRole }) => {
                       <div className={`meta-item ${isOverdue(activity.fecha_limite) ? 'overdue' : ''}`}>
                         <AiOutlineCalendar />
                         <span>{formatDate(activity.fecha_limite)}</span>
+                        {isOverdue(activity.fecha_limite) && <AiOutlineWarning style={{ color: '#ef4444' }} />}
                       </div>
                     )}
                     
                     {activity.asignados && activity.asignados.length > 0 && (
                       <div className="meta-item">
                         <AiOutlineUser />
-                        <span>{activity.asignados.join(', ')}</span>
+                        <span title={activity.asignados.join(', ')}>
+                          {activity.asignados.length > 1 
+                            ? `${activity.asignados[0]} +${activity.asignados.length - 1}` 
+                            : activity.asignados[0]
+                          }
+                        </span>
+                      </div>
+                    )}
+
+                    {/* NUEVO: Mostrar creador para coordinadores */}
+                    {userRole === 'coordinador' && activity.creador_nombre && (
+                      <div className="meta-item creator">
+                        <span className="creator-label">Creado por:</span>
+                        <span>{activity.creador_nombre} {activity.creador_apellido}</span>
                       </div>
                     )}
                   </div>
@@ -313,7 +395,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
                   <div className="activity-stats">
                     {activity.total_evidencias > 0 && (
                       <span className="stat-badge evidences" title="Evidencias">
-                        <AiOutlineFile /> {activity.total_evidencias}
+                        <AiOutlineFile /> {activity.evidencias_aprobadas || 0}/{activity.total_evidencias}
                       </span>
                     )}
                     {activity.total_comentarios > 0 && (
@@ -325,6 +407,17 @@ const KanbanBoard = ({ projectId, userRole }) => {
                   
                   <div className="activity-actions">
                     <div className="action-buttons">
+                      {/* NUEVO: Botón de detalle para coordinadores */}
+                      {userRole === 'coordinador' && (
+                        <button 
+                          className="btn-icon btn-info"
+                          onClick={() => handleViewActivityDetail(activity)}
+                          title="Ver detalles completos"
+                        >
+                          <AiOutlineEye />
+                        </button>
+                      )}
+
                       {canUploadEvidence(activity) && (
                         <button 
                           className="btn-icon btn-primary"
@@ -344,7 +437,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
                           onClick={() => handleViewEvidences(activity)}
                           title="Ver evidencias"
                         >
-                          <AiOutlineEye />
+                          <AiOutlineFile />
                         </button>
                       )}
                     </div>
@@ -371,7 +464,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
                           </button>
                         )}
                         
-                        {(activity.estado === 'revision' && userRole === 'lider') && (
+                        {(activity.estado === 'revision' && canApproveActivities()) && (
                           <>
                             <button 
                               className="btn-icon btn-success"
@@ -411,7 +504,128 @@ const KanbanBoard = ({ projectId, userRole }) => {
         ))}
       </div>
 
-      {/* Modal para crear actividad */}
+      {/* NUEVO: Modal de detalle de actividad para coordinadores */}
+      {showActivityDetailModal && selectedActivity && userRole === 'coordinador' && (
+        <div className="modal-backdrop">
+          <div className="modal modal-large">
+            <div className="modal-header">
+              <h3>Detalles de Actividad - {selectedActivity.titulo}</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowActivityDetailModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="activity-detail-content">
+                <div className="detail-section">
+                  <h4>Información General</h4>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <label>Estado:</label>
+                      <span className={`status-badge ${selectedActivity.estado}`}>
+                        {estados.find(e => e.key === selectedActivity.estado)?.label}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Prioridad:</label>
+                      <span style={{ color: prioridades[selectedActivity.prioridad]?.color }}>
+                        {prioridades[selectedActivity.prioridad]?.icon} {selectedActivity.prioridad.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Creado por:</label>
+                      <span>{selectedActivity.creador_nombre} {selectedActivity.creador_apellido}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Fecha creación:</label>
+                      <span>{formatDateTime(selectedActivity.fecha_creacion)}</span>
+                    </div>
+                    {selectedActivity.fecha_inicio && (
+                      <div className="detail-item">
+                        <label>Fecha inicio:</label>
+                        <span>{formatDate(selectedActivity.fecha_inicio)}</span>
+                      </div>
+                    )}
+                    {selectedActivity.fecha_limite && (
+                      <div className="detail-item">
+                        <label>Fecha límite:</label>
+                        <span className={isOverdue(selectedActivity.fecha_limite) ? 'overdue' : ''}>
+                          {formatDate(selectedActivity.fecha_limite)}
+                          {isOverdue(selectedActivity.fecha_limite) && ' (VENCIDA)'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedActivity.descripcion && (
+                  <div className="detail-section">
+                    <h4>Descripción</h4>
+                    <p>{selectedActivity.descripcion}</p>
+                  </div>
+                )}
+
+                {selectedActivity.asignados && selectedActivity.asignados.length > 0 && (
+                  <div className="detail-section">
+                    <h4>Asignados ({selectedActivity.asignados.length})</h4>
+                    <div className="assignees-list">
+                      {selectedActivity.asignados.map((asignado, index) => (
+                        <div key={index} className="assignee-item">
+                          <AiOutlineUser />
+                          <span>{asignado}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="detail-section">
+                  <h4>Estadísticas</h4>
+                  <div className="stats-grid">
+                    <div className="stat-item">
+                      <span className="stat-number">{selectedActivity.total_evidencias || 0}</span>
+                      <span className="stat-label">Evidencias</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-number">{selectedActivity.evidencias_aprobadas || 0}</span>
+                      <span className="stat-label">Aprobadas</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-number">{selectedActivity.total_comentarios || 0}</span>
+                      <span className="stat-label">Comentarios</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                {selectedActivity.total_evidencias > 0 && (
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowActivityDetailModal(false);
+                      handleViewEvidences(selectedActivity);
+                    }}
+                  >
+                    Ver Evidencias
+                  </button>
+                )}
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowActivityDetailModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para crear actividad - Sin cambios */}
       {showCreateModal && (
         <div className="modal-backdrop">
           <div className="modal modal-large">
@@ -495,7 +709,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
                   >
                     {projectMembers.map(member => (
                       <option key={member.id_usuario} value={member.id_usuario}>
-                        {member.nombre} {member.apellido} ({member.rol})
+                        {getRoleIcon(member.rol)} {member.nombre} {member.apellido} ({member.rol})
                       </option>
                     ))}
                   </select>
@@ -522,7 +736,7 @@ const KanbanBoard = ({ projectId, userRole }) => {
         </div>
       )}
 
-      {/* Modal para subir evidencia */}
+      {/* Resto de modales sin cambios... */}
       {showEvidenceModal && selectedActivity && (
         <div className="modal-backdrop">
           <div className="modal modal-large">
@@ -686,6 +900,5 @@ const KanbanBoard = ({ projectId, userRole }) => {
     </div>
   );
 };
-
 
 export default KanbanBoard;

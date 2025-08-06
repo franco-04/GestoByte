@@ -10,15 +10,15 @@ export default function ReunionesManager() {
   const [horaReunion, setHoraReunion] = useState("");
   const [duracionMinutos, setDuracionMinutos] = useState(60);
   const [ubicacion, setUbicacion] = useState("");
-  const [portafolioSeleccionado, setPortafolioSeleccionado] = useState("");
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(""); // CAMBIO: proyectos en lugar de portafolios
   
-  // NUEVOS ESTADOS para selección de participantes
+  // Estados para selección de participantes
   const [estudiantesDisponibles, setEstudiantesDisponibles] = useState([]);
   const [participantesSeleccionados, setParticipantesSeleccionados] = useState([]);
   const [loadingEstudiantes, setLoadingEstudiantes] = useState(false);
   
   // Estados para datos
-  const [misPortafolios, setMisPortafolios] = useState([]);
+  const [misProyectos, setMisProyectos] = useState([]); // CAMBIO: proyectos en lugar de portafolios
   const [misReuniones, setMisReuniones] = useState([]);
   const [estadisticas, setEstadisticas] = useState({
     proximas: 0,
@@ -37,20 +37,21 @@ export default function ReunionesManager() {
   const [reunionDetalle, setReunionDetalle] = useState(null);
 
   useEffect(() => {
-    fetchPortafolios();
+    fetchProyectos(); // CAMBIO: fetchProyectos en lugar de fetchPortafolios
     fetchReuniones();
     fetchEstadisticas();
   }, []);
 
-  const fetchPortafolios = async () => {
+  // CAMBIO: Obtener proyectos en lugar de portafolios
+  const fetchProyectos = async () => {
     try {
-      const res = await api.get("/auth/mis-portafolios");
-      setMisPortafolios(Array.isArray(res.data) ? res.data : []);
+      const res = await api.get("/auth/reuniones/proyectos"); // NUEVA RUTA
+      setMisProyectos(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error("Error al obtener portafolios:", error);
-      setMisPortafolios([]);
+      console.error("Error al obtener proyectos:", error);
+      setMisProyectos([]);
       if (error.response?.status === 403) {
-        setError("No tienes permisos para acceder a los portafolios. Verifica tu rol de usuario.");
+        setError("No tienes permisos para acceder a los proyectos. Verifica tu rol de usuario.");
       }
     }
   };
@@ -79,13 +80,12 @@ export default function ReunionesManager() {
       });
     } catch (error) {
       console.error("Error al obtener estadísticas:", error);
-      // No mostrar error para estadísticas ya que no es crítico
     }
   };
 
-  // NUEVA FUNCIÓN: Cargar estudiantes cuando se selecciona un portafolio
-  const fetchEstudiantesPortafolio = async (idPortafolio) => {
-    if (!idPortafolio) {
+  // CAMBIO: Cargar estudiantes del proyecto seleccionado
+  const fetchEstudiantesProyecto = async (idProyecto) => {
+    if (!idProyecto) {
       setEstudiantesDisponibles([]);
       setParticipantesSeleccionados([]);
       return;
@@ -93,35 +93,35 @@ export default function ReunionesManager() {
 
     setLoadingEstudiantes(true);
     try {
-      const res = await api.get(`/auth/portafolios/${idPortafolio}/estudiantes`);
+      const res = await api.get(`/auth/reuniones/proyectos/${idProyecto}/estudiantes`); // NUEVA RUTA
       console.log("Estudiantes recibidos:", res.data);
       setEstudiantesDisponibles(Array.isArray(res.data) ? res.data : []);
-      setParticipantesSeleccionados([]); // Limpiar selección anterior
+      setParticipantesSeleccionados([]);
     } catch (error) {
       console.error("Error al obtener estudiantes:", error);
       setEstudiantesDisponibles([]);
       if (error.response?.status !== 403) {
-        setError("Error al cargar estudiantes del portafolio");
+        setError("Error al cargar estudiantes del proyecto");
       }
     } finally {
       setLoadingEstudiantes(false);
     }
   };
 
-  // NUEVA FUNCIÓN: Manejar cambio de portafolio
-  const handlePortafolioChange = (e) => {
-    const idPortafolio = e.target.value;
-    console.log("Portafolio seleccionado:", idPortafolio);
-    setPortafolioSeleccionado(idPortafolio);
-    if (idPortafolio) {
-      fetchEstudiantesPortafolio(idPortafolio);
+  // CAMBIO: Manejar cambio de proyecto
+  const handleProyectoChange = (e) => {
+    const idProyecto = e.target.value;
+    console.log("Proyecto seleccionado:", idProyecto);
+    setProyectoSeleccionado(idProyecto);
+    if (idProyecto) {
+      fetchEstudiantesProyecto(idProyecto);
     } else {
       setEstudiantesDisponibles([]);
       setParticipantesSeleccionados([]);
     }
   };
 
-  // NUEVA FUNCIÓN: Toggle participante
+  // Toggle participante
   const toggleParticipante = (estudiante) => {
     const existe = participantesSeleccionados.find(p => p.id_usuario === estudiante.id_usuario);
     
@@ -140,7 +140,6 @@ export default function ReunionesManager() {
     setError("");
     setSuccess("");
 
-    // VALIDACIÓN: Verificar que hay participantes seleccionados
     if (participantesSeleccionados.length === 0) {
       setError("Debes seleccionar al menos un participante para la reunión");
       setLoading(false);
@@ -156,19 +155,16 @@ export default function ReunionesManager() {
         fecha_reunion: fechaCompleta,
         duracion_minutos: parseInt(duracionMinutos),
         ubicacion,
-        id_portafolio: parseInt(portafolioSeleccionado),
-        participantes: participantesSeleccionados.map(p => p.id_usuario) // NUEVA: Lista de participantes
+        id_proyecto: parseInt(proyectoSeleccionado), // CAMBIO: id_proyecto en lugar de id_portafolio
+        participantes: participantesSeleccionados.map(p => p.id_usuario)
       };
 
-      console.log("Datos enviados:", data); // Debug
+      console.log("Datos enviados:", data);
 
       await api.post("/auth/reuniones", data);
       setSuccess("Reunión creada exitosamente");
       
-      // Limpiar formulario
       limpiarFormulario();
-      
-      // Refrescar datos
       fetchReuniones();
       fetchEstadisticas();
     } catch (error) {
@@ -248,7 +244,6 @@ export default function ReunionesManager() {
     setSuccess("");
   };
 
-  // NUEVA FUNCIÓN: Limpiar formulario completo
   const limpiarFormulario = () => {
     setTitulo("");
     setDescripcion("");
@@ -256,7 +251,7 @@ export default function ReunionesManager() {
     setHoraReunion("");
     setDuracionMinutos(60);
     setUbicacion("");
-    setPortafolioSeleccionado("");
+    setProyectoSeleccionado("");
     setParticipantesSeleccionados([]);
     setEstudiantesDisponibles([]);
     clearMessages();
@@ -267,7 +262,7 @@ export default function ReunionesManager() {
       <div className="admin-header">
         <h1>Gestión de Reuniones</h1>
         <p className="admin-subtitle">
-          Programa y administra reuniones con tus estudiantes
+          Programa y administra reuniones con los equipos de tus proyectos
         </p>
       </div>
 
@@ -338,17 +333,17 @@ export default function ReunionesManager() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Portafolio</label>
+                <label className="form-label">Proyecto</label>
                 <select
                   className="form-select"
-                  value={portafolioSeleccionado}
-                  onChange={handlePortafolioChange} // MODIFICADO: usar nueva función
+                  value={proyectoSeleccionado}
+                  onChange={handleProyectoChange}
                   required
                 >
-                  <option value="">Seleccione un portafolio</option>
-                  {misPortafolios.map((p) => (
-                    <option key={p.id_portafolio} value={p.id_portafolio}>
-                      {p.nombre} - {p.carrera}
+                  <option value="">Seleccione un proyecto</option>
+                  {misProyectos.map((p) => (
+                    <option key={p.id_proyecto} value={p.id_proyecto}>
+                      {p.proyecto_nombre} - {p.programa_nombre} ({p.total_estudiantes} estudiantes)
                     </option>
                   ))}
                 </select>
@@ -415,8 +410,8 @@ export default function ReunionesManager() {
               </div>
             </div>
 
-            {/* NUEVA SECCIÓN: Selección de participantes */}
-            {portafolioSeleccionado && (
+            {/* Selección de participantes */}
+            {proyectoSeleccionado && (
               <div className="form-group form-group-full" style={{ marginTop: "1.5rem", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "1rem" }}>
                 <label className="form-label" style={{ fontSize: "1.1rem", fontWeight: "600", marginBottom: "1rem" }}>
                   👥 Seleccionar Participantes ({participantesSeleccionados.length} seleccionados)
@@ -425,12 +420,12 @@ export default function ReunionesManager() {
                 {loadingEstudiantes ? (
                   <div style={{ padding: "2rem", textAlign: "center", background: "#f8f9fa", borderRadius: "8px" }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
-                    <p>Cargando estudiantes del portafolio...</p>
+                    <p>Cargando miembros del proyecto...</p>
                   </div>
                 ) : estudiantesDisponibles.length === 0 ? (
                   <div style={{ padding: "2rem", textAlign: "center", background: "#f8f9fa", borderRadius: "8px" }}>
                     <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>👥</div>
-                    <p>No hay estudiantes en este portafolio</p>
+                    <p>No hay estudiantes en este proyecto</p>
                   </div>
                 ) : (
                   <>
@@ -480,8 +475,20 @@ export default function ReunionesManager() {
                               {isSelected && "✓"}
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: "600" }}>
+                              <div style={{ fontWeight: "600", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 {estudiante.nombre} {estudiante.apellido}
+                                {estudiante.rol === 'lider' && (
+                                  <span style={{ 
+                                    backgroundColor: "#f59e0b", 
+                                    color: "white", 
+                                    fontSize: "0.75rem", 
+                                    padding: "0.25rem 0.5rem", 
+                                    borderRadius: "4px",
+                                    fontWeight: "bold"
+                                  }}>
+                                    👑 LÍDER
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: "0.875rem", opacity: 0.7 }}>
                                 {estudiante.email}
@@ -504,7 +511,7 @@ export default function ReunionesManager() {
                         <div style={{ marginTop: "0.5rem" }}>
                           {participantesSeleccionados.map((p, index) => (
                             <span key={p.id_usuario} style={{ color: "#0369a1" }}>
-                              {p.nombre} {p.apellido}
+                              {p.nombre} {p.apellido}{p.rol === 'lider' && ' (Líder)'}
                               {index < participantesSeleccionados.length - 1 && ", "}
                             </span>
                           ))}
@@ -527,7 +534,7 @@ export default function ReunionesManager() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading || (portafolioSeleccionado && participantesSeleccionados.length === 0)}
+                disabled={loading || (proyectoSeleccionado && participantesSeleccionados.length === 0)}
               >
                 {loading ? "Programando..." : "Programar Reunión"}
               </button>
@@ -554,8 +561,12 @@ export default function ReunionesManager() {
                   </div>
                   <div className="portfolio-card-body">
                     <div>
-                      <span className="portfolio-label">Portafolio:</span>{" "}
-                      <span>{reunion.nombre_portafolio}</span>
+                      <span className="portfolio-label">Proyecto:</span>{" "}
+                      <span>{reunion.proyecto_nombre}</span>
+                    </div>
+                    <div>
+                      <span className="portfolio-label">Programa:</span>{" "}
+                      <span>{reunion.programa_nombre}</span>
                     </div>
                     <div>
                       <span className="portfolio-label">Fecha:</span>{" "}
@@ -599,7 +610,9 @@ export default function ReunionesManager() {
           <div className="modal" style={{ maxWidth: "600px" }}>
             <h3>{reunionDetalle.reunion.titulo}</h3>
             <div style={{ marginBottom: "1rem" }}>
-              <p><strong>Portafolio:</strong> {reunionDetalle.reunion.nombre_portafolio}</p>
+              <p><strong>Proyecto:</strong> {reunionDetalle.reunion.proyecto_nombre}</p>
+              <p><strong>Programa:</strong> {reunionDetalle.reunion.programa_nombre}</p>
+              <p><strong>Coordinador:</strong> {reunionDetalle.reunion.coordinador_nombre} {reunionDetalle.reunion.coordinador_apellido}</p>
               <p><strong>Fecha:</strong> {formatearFecha(reunionDetalle.reunion.fecha_reunion)}</p>
               <p><strong>Duración:</strong> {reunionDetalle.reunion.duracion_minutos} minutos</p>
               <p><strong>Ubicación:</strong> {reunionDetalle.reunion.ubicacion}</p>

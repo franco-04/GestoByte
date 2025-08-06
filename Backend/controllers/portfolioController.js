@@ -39,7 +39,7 @@ export const createPortfolio = async (req, res) => {
 export const getProfesores = async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM usuarios WHERE rol = ?", [
-      "Asesor",
+      "Coordinador",
     ]);
     res.json(rows);
   } catch (error) {
@@ -399,11 +399,17 @@ export const createProyecto = async (req, res) => {
     );
     const id_proyecto = result.insertId;
 
-    // Insertar estudiantes en la tabla proyecto_estudiantes
+    // CORRECCIÓN: Insertar estudiantes con los roles correctos
     if (Array.isArray(estudiantes) && estudiantes.length > 0) {
-      const values = estudiantes.map(id_estudiante => [id_proyecto, id_estudiante]);
+      const values = estudiantes.map(id_estudiante => {
+        // Si el estudiante es el líder, asignar rol 'lider', sino 'miembro'
+        const rol = (id_estudiante === parseInt(lider)) ? 'lider' : 'miembro';
+        return [id_proyecto, id_estudiante, rol];
+      });
+      
+      // IMPORTANTE: Agregar la columna 'rol' en la query
       await connection.query(
-        "INSERT INTO proyecto_estudiantes (id_proyecto, id_estudiante) VALUES ?",
+        "INSERT INTO proyecto_estudiantes (id_proyecto, id_estudiante, rol) VALUES ?",
         [values]
       );
     }
@@ -412,12 +418,12 @@ export const createProyecto = async (req, res) => {
     res.status(201).json({ message: "Proyecto creado correctamente" });
   } catch (error) {
     await connection.rollback();
+    console.error('Error al crear proyecto:', error);
     res.status(500).json({ error: "Error al crear proyecto" });
   } finally {
     connection.release();
   }
 };
-
 export const getEstudiantesProyecto = async (req, res) => {
   const { id_proyecto } = req.params;
   try {

@@ -127,8 +127,8 @@ export default function ReunionesEstudiante() {
                     </div>
                     <div className="portfolio-card-body">
                       <div>
-                        <span className="portfolio-label">Portafolio:</span>{" "}
-                        <span>{reunion.nombre_portafolio}</span>
+                      <span className="portfolio-label">Proyecto:</span>{" "}
+                      <span>{reunion.proyecto_nombre || reunion.nombre_portafolio}</span>
                       </div>
                       <div>
                         <span className="portfolio-label">Fecha:</span>{" "}
@@ -227,7 +227,7 @@ export default function ReunionesEstudiante() {
           <div className="modal" style={{ maxWidth: "600px" }}>
             <h3>{reunionDetalle.reunion.titulo}</h3>
             <div style={{ marginBottom: "1rem" }}>
-              <p><strong>Portafolio:</strong> {reunionDetalle.reunion.nombre_portafolio}</p>
+            <p><strong>Proyecto:</strong> {reunionDetalle.reunion.proyecto_nombre || reunionDetalle.reunion.nombre_portafolio}</p>
               <p><strong>Coordinador:</strong> {reunionDetalle.reunion.coordinador_nombre} {reunionDetalle.reunion.coordinador_apellido}</p>
               <p><strong>Fecha:</strong> {formatearFecha(reunionDetalle.reunion.fecha_reunion)}</p>
               <p><strong>Duración:</strong> {reunionDetalle.reunion.duracion_minutos} minutos</p>
