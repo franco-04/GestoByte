@@ -26,7 +26,8 @@ import {
   getProyectosPrograma,
   getEstudiantesPrograma,
   createProyecto,
-  getEstudiantesProyecto
+  getEstudiantesProyecto,
+  getPortafoliosAsignados
 } from '../controllers/portfolioController.js';
 
 import {
@@ -109,6 +110,9 @@ router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafoli
 router.get('/portafolios/:id_portafolio/programas', authenticate, getProgramasPortafolio);
 router.get('/portafolios/:id_portafolio/asesores', authenticate, getAsesoresPortafolio);
 router.post('/portafolios/:id_portafolio/programas', authenticate, createPrograma);
+
+// Nuevas rutas para portafolios asignados y gestión de proyectos
+router.get('/portafolios/asignados', authenticate, getPortafoliosAsignados);
 
 router.get('/programas/:id_programa/proyectos', authenticate, getProyectosPrograma);
 router.get('/programas/:id_programa/estudiantes', authenticate, getEstudiantesPrograma);

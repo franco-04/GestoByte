@@ -47,13 +47,7 @@ export default function Sidebar({ vista, setVista }) {
           >
           <AiOutlineCalendar className="sidebar-icon" /> Reuniones
         </button>
-        
-        <button
-          className={`sidebar-button${vista === "configuracion" ? " active" : ""}`}
-          onClick={() => setVista("configuracion")}
-        >
-          <AiFillSetting className="sidebar-icon" /> Configuración
-        </button>
+      
         <button
           className="sidebar-button logout"
           onClick={() => {

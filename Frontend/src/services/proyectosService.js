@@ -65,7 +65,7 @@ const proyectosService = {
   // 7. Obtener programas por portafolio
   getProgramasByPortafolio: async (id) => {
     try {
-      const res = await api.get(`/auth/portafolios/${id}/programas`); 
+      const res = await api.get(`/auth/portafolios/${id}/programas`);
       return res.data;
     } catch (error) {
       throw errorHandler(error);
@@ -125,7 +125,39 @@ const proyectosService = {
   // 13. Obtener estudiantes por proyecto
   getEstudiantesProyecto: async (idPrograma, idProyecto) => {
     try {
-      const res = await api.get(`/auth/programas/${idPrograma}/proyectos/${idProyecto}/estudiantes`);
+      const res = await api.get(
+        `/auth/programas/${idPrograma}/proyectos/${idProyecto}/estudiantes`
+      );
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // 14. Obtener estudiantes por carrera
+  getEstudiantesByCarrera: async (carrera) => {
+    try {
+      const res = await api.get(
+        `/auth/estudiantes/carrera/${encodeURIComponent(carrera)}`
+      );
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+  // 15. Obtener reuniones del coordinador
+  getReunionesCoordinador: async () => {
+    try {
+      const res = await api.get("/auth/reuniones/coordinador");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+  // 16. Obtener portafolios asignados a los profes
+  getPortafoliosAsignados: async () => {
+    try {
+      const res = await api.get("/auth/portafolios/asignados");
       return res.data;
     } catch (error) {
       throw errorHandler(error);

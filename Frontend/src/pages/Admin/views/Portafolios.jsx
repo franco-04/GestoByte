@@ -27,14 +27,19 @@ export default function ProyectosManager() {
   }, []);
 
   const fetchMisPortafolios = async () => {
-    try {
-      const data = await proyectosService.getMisPortafolios();
-      setMisPortafolios(data);
-    } catch {
-      setMisPortafolios([]);
+  try {
+    const user = JSON.parse(localStorage.getItem("userData") || "{}");
+    let data = [];
+    if (user.rol === "administrador") {
+      data = await proyectosService.getPortafoliosAsignados();
+    } else {
+      data = await proyectosService.getMisPortafolios();
     }
-  };
-
+    setMisPortafolios(data);
+  } catch {
+    setMisPortafolios([]);
+  }
+};
   const resetForm = () => {
     setProgramas([]);
     setProyectos([]);

@@ -439,3 +439,20 @@ export const getEstudiantesProyecto = async (req, res) => {
     res.status(500).json({ error: "Error al obtener estudiantes del proyecto" });
   }
 };
+
+//Funcion nueva para arreglalo lo de los portafolios de los profes
+export const getPortafoliosAsignados = async (req, res) => {
+  const id_profesor = req.user.id; 
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.* 
+       FROM portafolios p
+       INNER JOIN portafolio_profesores pp ON p.id_portafolio = pp.id_portafolio
+       WHERE pp.id_asesores = ? AND p.activo = 1`,
+      [id_profesor]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener portafolios asignados" });
+  }
+};

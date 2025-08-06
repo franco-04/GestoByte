@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   AiFillDashboard,
   AiFillProject,
@@ -10,21 +10,22 @@ import {
   AiOutlineTrophy,
   AiOutlineCalendar,
   AiOutlineFlag,
-  AiOutlineClockCircle
-} from 'react-icons/ai';
-import authService from '../../services/authService';
-import ReunionesEstudiante from './ReunionesEstudiante';
-import api from '../../api/api';
-import EvidenceManager from '../../components/EvidenceManager';
-import KanbanBoard from '../../components/KanbanBoard';
-import './Estudent.css';
-import './evidence_styles.css';
+  AiOutlineClockCircle,
+  AiFillSetting,
+} from "react-icons/ai";
+import authService from "../../services/authService";
+import ReunionesEstudiante from "./ReunionesEstudiante";
+import api from "../../api/api";
+import EvidenceManager from "../../components/EvidenceManager";
+import KanbanBoard from "../../components/KanbanBoard";
+import "./Estudent.css";
+import "./evidence_styles.css";
 import logo from "../../assets/log.png";
 
 export default function StudentDashboard() {
   const user = authService.getCurrentUser();
-  const [vista, setVista] = useState('dashboard');
-  
+  const [vista, setVista] = useState("dashboard");
+
   // Estados para el dashboard
   const [stats, setStats] = useState({
     totalProyectos: 0,
@@ -33,9 +34,9 @@ export default function StudentDashboard() {
     totalEvidencias: 0,
     evidenciasAprobadas: 0,
     evidenciasPendientes: 0,
-    alertasActivas: 0
+    alertasActivas: 0,
   });
-  
+
   // Estados para datos
   const [misProyectos, setMisProyectos] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -43,14 +44,14 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  
+
   // Estados para navegación
   const [selectedProject, setSelectedProject] = useState(null);
 
   // Estados para reuniones
   const [reunionesStats, setReunionesStats] = useState({
     proximas: 0,
-    pendientesConfirmar: 0
+    pendientesConfirmar: 0,
   });
 
   useEffect(() => {
@@ -65,16 +66,22 @@ export default function StudentDashboard() {
     try {
       const res = await api.get("/auth/student/my-projects");
       setMisProyectos(res.data);
-      
+
       // Calcular estadísticas
-      const totalActividades = res.data.reduce((sum, p) => sum + (p.total_actividades || 0), 0);
-      const actividadesCompletadas = res.data.reduce((sum, p) => sum + (p.actividades_completadas || 0), 0);
-      
-      setStats(prev => ({
+      const totalActividades = res.data.reduce(
+        (sum, p) => sum + (p.total_actividades || 0),
+        0
+      );
+      const actividadesCompletadas = res.data.reduce(
+        (sum, p) => sum + (p.actividades_completadas || 0),
+        0
+      );
+
+      setStats((prev) => ({
         ...prev,
         totalProyectos: res.data.length,
         actividadesTotales: totalActividades,
-        actividadesCompletadas: actividadesCompletadas
+        actividadesCompletadas: actividadesCompletadas,
       }));
     } catch (error) {
       console.error("Error al obtener mis proyectos:", error);
@@ -88,11 +95,11 @@ export default function StudentDashboard() {
     try {
       const res = await api.get("/auth/student/evidencias/stats-unificadas"); // 🔥 NUEVA RUTA
       setEvidenceStats(res.data);
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         totalEvidencias: res.data.estadisticas.total_evidencias,
         evidenciasAprobadas: res.data.estadisticas.aprobadas,
-        evidenciasPendientes: res.data.estadisticas.pendientes
+        evidenciasPendientes: res.data.estadisticas.pendientes,
       }));
     } catch (error) {
       console.error("Error al obtener estadísticas de evidencias:", error);
@@ -103,9 +110,9 @@ export default function StudentDashboard() {
     try {
       const res = await api.get("/auth/student/alertas");
       setAlertas(res.data);
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
-        alertasActivas: res.data.length
+        alertasActivas: res.data.length,
       }));
     } catch (error) {
       console.error("Error al obtener alertas:", error);
@@ -117,13 +124,17 @@ export default function StudentDashboard() {
       const res = await api.get("/auth/reuniones/estudiante");
       const reuniones = res.data;
       const ahora = new Date();
-      
-      const proximas = reuniones.filter(r => new Date(r.fecha_reunion) > ahora).length;
-      const pendientes = reuniones.filter(r => !r.confirmado && new Date(r.fecha_reunion) > ahora).length;
-      
+
+      const proximas = reuniones.filter(
+        (r) => new Date(r.fecha_reunion) > ahora
+      ).length;
+      const pendientes = reuniones.filter(
+        (r) => !r.confirmado && new Date(r.fecha_reunion) > ahora
+      ).length;
+
       setReunionesStats({
         proximas,
-        pendientesConfirmar: pendientes
+        pendientesConfirmar: pendientes,
       });
     } catch (error) {
       console.error("Error al obtener estadísticas de reuniones:", error);
@@ -132,7 +143,7 @@ export default function StudentDashboard() {
         console.warn("La ruta de reuniones no está implementada en el backend");
         setReunionesStats({
           proximas: 0,
-          pendientesConfirmar: 0
+          pendientesConfirmar: 0,
         });
       }
     }
@@ -140,25 +151,25 @@ export default function StudentDashboard() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "No definida";
-    return new Date(dateString).toLocaleDateString('es-ES');
+    return new Date(dateString).toLocaleDateString("es-ES");
   };
 
   const getRoleIcon = (rol) => {
-    return rol === 'lider' ? <AiOutlineTrophy /> : <AiOutlineTeam />;
+    return rol === "lider" ? <AiOutlineTrophy /> : <AiOutlineTeam />;
   };
 
   const getRoleColor = (rol) => {
-    return rol === 'lider' ? '#f59e0b' : '#3b82f6';
+    return rol === "lider" ? "#f59e0b" : "#3b82f6";
   };
 
   const handleProjectClick = (project) => {
     setSelectedProject(project);
-    setVista('kanban');
+    setVista("kanban");
   };
 
   const handleBackToProjects = () => {
     setSelectedProject(null);
-    setVista('proyectos');
+    setVista("proyectos");
   };
 
   const clearMessages = () => {
@@ -175,9 +186,11 @@ export default function StudentDashboard() {
         </div>
         <nav className="sidebar-nav">
           <button
-            className={`sidebar-button${vista === 'dashboard' ? ' active' : ''}`}
+            className={`sidebar-button${
+              vista === "dashboard" ? " active" : ""
+            }`}
             onClick={() => {
-              setVista('dashboard');
+              setVista("dashboard");
               setSelectedProject(null);
               clearMessages();
             }}
@@ -185,9 +198,11 @@ export default function StudentDashboard() {
             <AiFillDashboard className="sidebar-icon" /> Dashboard
           </button>
           <button
-            className={`sidebar-button${vista === 'proyectos' || vista === 'kanban' ? ' active' : ''}`}
+            className={`sidebar-button${
+              vista === "proyectos" || vista === "kanban" ? " active" : ""
+            }`}
             onClick={() => {
-              setVista('proyectos');
+              setVista("proyectos");
               setSelectedProject(null);
               clearMessages();
             }}
@@ -195,9 +210,11 @@ export default function StudentDashboard() {
             <AiFillProject className="sidebar-icon" /> Mis Proyectos
           </button>
           <button
-            className={`sidebar-button${vista === 'evidencias' ? ' active' : ''}`}
+            className={`sidebar-button${
+              vista === "evidencias" ? " active" : ""
+            }`}
             onClick={() => {
-              setVista('evidencias');
+              setVista("evidencias");
               setSelectedProject(null);
               clearMessages();
             }}
@@ -205,21 +222,27 @@ export default function StudentDashboard() {
             <AiOutlineFileText className="sidebar-icon" /> Mis Evidencias
           </button>
           <button
-            className={`sidebar-button${vista === 'reuniones' ? ' active' : ''}`}
+            className={`sidebar-button${
+              vista === "reuniones" ? " active" : ""
+            }`}
             onClick={() => {
-              setVista('reuniones');
+              setVista("reuniones");
               setSelectedProject(null);
               clearMessages();
             }}
           >
-            <AiOutlineCalendar className="sidebar-icon" /> 
+            <AiOutlineCalendar className="sidebar-icon" />
             Mis Reuniones
-            {reunionesStats.pendientesConfirmar > 0 && <span className="alert-badge">{reunionesStats.pendientesConfirmar}</span>}
+            {reunionesStats.pendientesConfirmar > 0 && (
+              <span className="alert-badge">
+                {reunionesStats.pendientesConfirmar}
+              </span>
+            )}
           </button>
           <button
-            className={`sidebar-button${vista === 'perfil' ? ' active' : ''}`}
+            className={`sidebar-button${vista === "perfil" ? " active" : ""}`}
             onClick={() => {
-              setVista('perfil');
+              setVista("perfil");
               setSelectedProject(null);
               clearMessages();
             }}
@@ -227,23 +250,38 @@ export default function StudentDashboard() {
             <AiOutlineUser className="sidebar-icon" /> Mi Perfil
           </button>
           <button
-            className={`sidebar-button${vista === 'alertas' ? ' active' : ''}`}
+            className={`sidebar-button${vista === "alertas" ? " active" : ""}`}
             onClick={() => {
-              setVista('alertas');
+              setVista("alertas");
               setSelectedProject(null);
               clearMessages();
             }}
           >
-            <AiOutlineBell className="sidebar-icon" /> 
-            Alertas 
-            {alertas.length > 0 && <span className="alert-badge">{alertas.length}</span>}
+            <AiOutlineBell className="sidebar-icon" />
+            Alertas
+            {alertas.length > 0 && (
+              <span className="alert-badge">{alertas.length}</span>
+            )}
           </button>
         </nav>
+        {/* Botón de cerrar sesión */}
+        <button
+          className="sidebar-button logout"
+          onClick={() => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("userData");
+            localStorage.removeItem("userRole");
+            window.location.href = "/login";
+          }}
+        >
+          <AiFillSetting className="sidebar-icon" /> Cerrar sesión
+        </button>
       </aside>
 
       <main className="admin-main">
         {/* Dashboard Principal */}
-        {vista === 'dashboard' && (
+        {vista === "dashboard" && (
           <div className="dashboard-content">
             <div className="dashboard-header">
               <div>
@@ -254,30 +292,37 @@ export default function StudentDashboard() {
               </div>
               <div className="user-info-card">
                 <div className="user-avatar">
-                  {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
+                  {user?.nombre?.charAt(0)}
+                  {user?.apellido?.charAt(0)}
                 </div>
                 <div className="user-details">
-                  <span className="user-name">{user?.nombre} {user?.apellido}</span>
+                  <span className="user-name">
+                    {user?.nombre} {user?.apellido}
+                  </span>
                   <span className="user-role">{user?.carrera}</span>
                 </div>
               </div>
             </div>
-            
+
             {/* Alertas globales */}
             {error && (
               <div className="admin-alert admin-alert-error">
                 <span>{error}</span>
-                <button onClick={clearMessages} className="alert-close">×</button>
+                <button onClick={clearMessages} className="alert-close">
+                  ×
+                </button>
               </div>
             )}
 
             {success && (
               <div className="admin-alert admin-alert-success">
                 <span>{success}</span>
-                <button onClick={clearMessages} className="alert-close">×</button>
+                <button onClick={clearMessages} className="alert-close">
+                  ×
+                </button>
               </div>
             )}
-            
+
             {/* Estadísticas principales */}
             <div className="stats-grid">
               <div className="stat-card primary">
@@ -291,7 +336,9 @@ export default function StudentDashboard() {
               <div className="stat-card success">
                 <div className="stat-icon">✅</div>
                 <div className="stat-content">
-                  <div className="stat-number">{stats.actividadesCompletadas}</div>
+                  <div className="stat-number">
+                    {stats.actividadesCompletadas}
+                  </div>
                   <div className="stat-label">Actividades Completadas</div>
                 </div>
               </div>
@@ -335,21 +382,32 @@ export default function StudentDashboard() {
                     <div className="activity-list">
                       {misProyectos.slice(0, 5).map((proyecto, index) => (
                         <div key={index} className="activity-item">
-                          <div className="activity-icon" style={{ color: getRoleColor(proyecto.rol_usuario) }}>
+                          <div
+                            className="activity-icon"
+                            style={{
+                              color: getRoleColor(proyecto.rol_usuario),
+                            }}
+                          >
                             {getRoleIcon(proyecto.rol_usuario)}
                           </div>
                           <div className="activity-content">
                             <p className="activity-message">
                               <strong>{proyecto.titulo}</strong>
-                              <span className="project-role" style={{ color: getRoleColor(proyecto.rol_usuario) }}>
+                              <span
+                                className="project-role"
+                                style={{
+                                  color: getRoleColor(proyecto.rol_usuario),
+                                }}
+                              >
                                 ({proyecto.rol_usuario})
                               </span>
                             </p>
                             <span className="activity-time">
-                              {proyecto.programa_nombre} • {proyecto.total_actividades || 0} actividades
+                              {proyecto.programa_nombre} •{" "}
+                              {proyecto.total_actividades || 0} actividades
                             </span>
                           </div>
-                          <button 
+                          <button
                             className="btn btn-sm btn-primary"
                             onClick={() => handleProjectClick(proyecto)}
                           >
@@ -359,9 +417,9 @@ export default function StudentDashboard() {
                       ))}
                       {misProyectos.length > 5 && (
                         <div className="view-all-projects">
-                          <button 
+                          <button
                             className="btn btn-secondary"
-                            onClick={() => setVista('proyectos')}
+                            onClick={() => setVista("proyectos")}
                           >
                             Ver todos los proyectos ({misProyectos.length})
                           </button>
@@ -382,19 +440,27 @@ export default function StudentDashboard() {
                     <div className="evidence-stats">
                       <div className="stat-row">
                         <span className="stat-label">Aprobadas:</span>
-                        <span className="stat-value success">{evidenceStats.estadisticas.aprobadas}</span>
+                        <span className="stat-value success">
+                          {evidenceStats.estadisticas.aprobadas}
+                        </span>
                       </div>
                       <div className="stat-row">
                         <span className="stat-label">Pendientes:</span>
-                        <span className="stat-value warning">{evidenceStats.estadisticas.pendientes}</span>
+                        <span className="stat-value warning">
+                          {evidenceStats.estadisticas.pendientes}
+                        </span>
                       </div>
                       <div className="stat-row">
                         <span className="stat-label">Requieren cambios:</span>
-                        <span className="stat-value error">{evidenceStats.estadisticas.requieren_cambios}</span>
+                        <span className="stat-value error">
+                          {evidenceStats.estadisticas.requieren_cambios}
+                        </span>
                       </div>
                       <div className="stat-row">
                         <span className="stat-label">Próximas a vencer:</span>
-                        <span className="stat-value warning">{evidenceStats.estadisticas.proximas_vencer}</span>
+                        <span className="stat-value warning">
+                          {evidenceStats.estadisticas.proximas_vencer}
+                        </span>
                       </div>
                     </div>
                   ) : (
@@ -421,21 +487,30 @@ export default function StudentDashboard() {
                     <div className="reuniones-preview">
                       <div className="stat-row">
                         <span className="stat-label">Total próximas:</span>
-                        <span className="stat-value info">{reunionesStats.proximas}</span>
+                        <span className="stat-value info">
+                          {reunionesStats.proximas}
+                        </span>
                       </div>
                       <div className="stat-row">
-                        <span className="stat-label">Pendientes de confirmar:</span>
-                        <span className="stat-value warning">{reunionesStats.pendientesConfirmar}</span>
+                        <span className="stat-label">
+                          Pendientes de confirmar:
+                        </span>
+                        <span className="stat-value warning">
+                          {reunionesStats.pendientesConfirmar}
+                        </span>
                       </div>
                       <div className="stat-row">
                         <span className="stat-label">Confirmadas:</span>
-                        <span className="stat-value success">{reunionesStats.proximas - reunionesStats.pendientesConfirmar}</span>
+                        <span className="stat-value success">
+                          {reunionesStats.proximas -
+                            reunionesStats.pendientesConfirmar}
+                        </span>
                       </div>
                       {reunionesStats.pendientesConfirmar > 0 && (
                         <div className="view-all-meetings">
-                          <button 
+                          <button
                             className="btn btn-warning btn-sm"
-                            onClick={() => setVista('reuniones')}
+                            onClick={() => setVista("reuniones")}
                           >
                             Confirmar reuniones pendientes
                           </button>
@@ -461,7 +536,10 @@ export default function StudentDashboard() {
                   ) : (
                     <div className="alerts-preview">
                       {alertas.slice(0, 3).map((alerta, index) => (
-                        <div key={index} className={`alert-preview-item ${alerta.tipo}`}>
+                        <div
+                          key={index}
+                          className={`alert-preview-item ${alerta.tipo}`}
+                        >
                           <div className="alert-preview-content">
                             <h5>{alerta.titulo}</h5>
                             <p>{alerta.mensaje}</p>
@@ -471,9 +549,9 @@ export default function StudentDashboard() {
                       ))}
                       {alertas.length > 3 && (
                         <div className="view-all-alerts">
-                          <button 
+                          <button
                             className="btn btn-secondary btn-sm"
-                            onClick={() => setVista('alertas')}
+                            onClick={() => setVista("alertas")}
                           >
                             Ver todas las alertas ({alertas.length})
                           </button>
@@ -488,7 +566,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Vista de Mis Proyectos */}
-        {vista === 'proyectos' && (
+        {vista === "proyectos" && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mis Proyectos</h1>
@@ -500,7 +578,9 @@ export default function StudentDashboard() {
             {error && (
               <div className="admin-alert admin-alert-error">
                 <span>{error}</span>
-                <button onClick={clearMessages} className="alert-close">×</button>
+                <button onClick={clearMessages} className="alert-close">
+                  ×
+                </button>
               </div>
             )}
 
@@ -514,7 +594,10 @@ export default function StudentDashboard() {
                   <div className="empty-state">
                     <div className="empty-icon">📋</div>
                     <h3>No tienes proyectos asignados</h3>
-                    <p>Cuando te asignen a un proyecto, aparecerá aquí para que puedas gestionar las actividades.</p>
+                    <p>
+                      Cuando te asignen a un proyecto, aparecerá aquí para que
+                      puedas gestionar las actividades.
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -523,16 +606,20 @@ export default function StudentDashboard() {
                     <div className="project-card" key={proyecto.id_proyecto}>
                       <div className="project-card-header">
                         <h3 className="project-title">{proyecto.titulo}</h3>
-                        <div 
-                          className="project-role-badge" 
-                          style={{ backgroundColor: getRoleColor(proyecto.rol_usuario) }}
+                        <div
+                          className="project-role-badge"
+                          style={{
+                            backgroundColor: getRoleColor(proyecto.rol_usuario),
+                          }}
                         >
                           {getRoleIcon(proyecto.rol_usuario)}
                           {proyecto.rol_usuario}
                         </div>
                       </div>
                       <div className="project-card-body">
-                        <p className="project-description">{proyecto.descripcion}</p>
+                        <p className="project-description">
+                          {proyecto.descripcion}
+                        </p>
                         <div className="project-meta">
                           <div className="meta-item">
                             <AiOutlineFlag />
@@ -540,38 +627,52 @@ export default function StudentDashboard() {
                           </div>
                           <div className="meta-item">
                             <AiOutlineCalendar />
-                            <span>Creado: {formatDate(proyecto.fecha_creacion)}</span>
+                            <span>
+                              Creado: {formatDate(proyecto.fecha_creacion)}
+                            </span>
                           </div>
                           <div className="meta-item">
                             <AiOutlineClockCircle />
-                            <span>Actividades: {proyecto.total_actividades || 0}</span>
+                            <span>
+                              Actividades: {proyecto.total_actividades || 0}
+                            </span>
                           </div>
                         </div>
                         <div className="project-progress">
                           <div className="progress-label">
                             <span>Progreso de actividades</span>
-                            <span>{proyecto.actividades_completadas || 0}/{proyecto.total_actividades || 0}</span>
+                            <span>
+                              {proyecto.actividades_completadas || 0}/
+                              {proyecto.total_actividades || 0}
+                            </span>
                           </div>
                           <div className="progress-bar">
-                            <div 
-                              className="progress-fill" 
-                              style={{ 
-                                width: `${proyecto.total_actividades > 0 ? 
-                                  ((proyecto.actividades_completadas || 0) / proyecto.total_actividades) * 100 : 0}%` 
+                            <div
+                              className="progress-fill"
+                              style={{
+                                width: `${
+                                  proyecto.total_actividades > 0
+                                    ? ((proyecto.actividades_completadas || 0) /
+                                        proyecto.total_actividades) *
+                                      100
+                                    : 0
+                                }%`,
                               }}
                             ></div>
                           </div>
                         </div>
                       </div>
                       <div className="project-card-actions">
-                        <button 
+                        <button
                           className="btn btn-primary"
                           onClick={() => handleProjectClick(proyecto)}
                         >
                           Abrir Tablero Kanban
                         </button>
-                        {proyecto.rol_usuario === 'lider' && (
-                          <span className="leader-badge">👑 Líder del proyecto</span>
+                        {proyecto.rol_usuario === "lider" && (
+                          <span className="leader-badge">
+                            👑 Líder del proyecto
+                          </span>
                         )}
                       </div>
                     </div>
@@ -583,11 +684,11 @@ export default function StudentDashboard() {
         )}
 
         {/* Vista del Tablero Kanban */}
-        {vista === 'kanban' && selectedProject && (
+        {vista === "kanban" && selectedProject && (
           <div className="admin-section">
             <div className="admin-header">
               <div className="header-with-back">
-                <button 
+                <button
                   className="btn btn-secondary"
                   onClick={handleBackToProjects}
                 >
@@ -596,21 +697,22 @@ export default function StudentDashboard() {
                 <div>
                   <h1>{selectedProject.titulo}</h1>
                   <p className="admin-subtitle">
-                    {selectedProject.programa_nombre} • Tu rol: <strong>{selectedProject.rol_usuario}</strong>
+                    {selectedProject.programa_nombre} • Tu rol:{" "}
+                    <strong>{selectedProject.rol_usuario}</strong>
                   </p>
                 </div>
               </div>
             </div>
 
-            <KanbanBoard 
-              projectId={selectedProject.id_proyecto} 
+            <KanbanBoard
+              projectId={selectedProject.id_proyecto}
               userRole={selectedProject.rol_usuario}
             />
           </div>
         )}
 
         {/* Vista de Evidencias */}
-        {vista === 'evidencias' && (
+        {vista === "evidencias" && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mis Evidencias</h1>
@@ -623,7 +725,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Vista de Reuniones */}
-        {vista === 'reuniones' && (
+        {vista === "reuniones" && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mis Reuniones</h1>
@@ -636,7 +738,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Vista de Perfil */}
-        {vista === 'perfil' && (
+        {vista === "perfil" && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Mi Perfil</h1>
@@ -654,10 +756,13 @@ export default function StudentDashboard() {
                   <div className="card-content">
                     <div className="profile-info">
                       <div className="profile-avatar-large">
-                        {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
+                        {user?.nombre?.charAt(0)}
+                        {user?.apellido?.charAt(0)}
                       </div>
                       <div className="profile-details">
-                        <h2>{user?.nombre} {user?.apellido}</h2>
+                        <h2>
+                          {user?.nombre} {user?.apellido}
+                        </h2>
                         <p className="profile-email">{user?.email}</p>
                         <p className="profile-career">{user?.carrera}</p>
                         <p className="profile-role">Estudiante</p>
@@ -665,7 +770,7 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="admin-card">
                   <div className="card-header">
                     <h3>Mis Proyectos Activos</h3>
@@ -678,16 +783,22 @@ export default function StudentDashboard() {
                             <h4>{proyecto.titulo}</h4>
                             <p>{proyecto.programa_nombre}</p>
                           </div>
-                          <div 
-                            className="project-badge" 
-                            style={{ backgroundColor: getRoleColor(proyecto.rol_usuario) }}
+                          <div
+                            className="project-badge"
+                            style={{
+                              backgroundColor: getRoleColor(
+                                proyecto.rol_usuario
+                              ),
+                            }}
                           >
                             {proyecto.rol_usuario}
                           </div>
                         </div>
                       ))}
                       {misProyectos.length === 0 && (
-                        <p className="empty-text">No tienes proyectos asignados</p>
+                        <p className="empty-text">
+                          No tienes proyectos asignados
+                        </p>
                       )}
                     </div>
                   </div>
@@ -700,19 +811,29 @@ export default function StudentDashboard() {
                   <div className="card-content">
                     <div className="stats-summary">
                       <div className="stat-item">
-                        <span className="stat-number">{stats.totalProyectos}</span>
+                        <span className="stat-number">
+                          {stats.totalProyectos}
+                        </span>
                         <span className="stat-label">Proyectos Asignados</span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{stats.actividadesCompletadas}</span>
-                        <span className="stat-label">Actividades Completadas</span>
+                        <span className="stat-number">
+                          {stats.actividadesCompletadas}
+                        </span>
+                        <span className="stat-label">
+                          Actividades Completadas
+                        </span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{stats.evidenciasAprobadas}</span>
+                        <span className="stat-number">
+                          {stats.evidenciasAprobadas}
+                        </span>
                         <span className="stat-label">Evidencias Aprobadas</span>
                       </div>
                       <div className="stat-item">
-                        <span className="stat-number">{reunionesStats.proximas}</span>
+                        <span className="stat-number">
+                          {reunionesStats.proximas}
+                        </span>
                         <span className="stat-label">Reuniones Próximas</span>
                       </div>
                     </div>
@@ -724,7 +845,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Vista de Alertas */}
-        {vista === 'alertas' && (
+        {vista === "alertas" && (
           <div className="admin-section">
             <div className="admin-header">
               <h1>Alertas</h1>
@@ -741,11 +862,17 @@ export default function StudentDashboard() {
                       <div className="empty-state">
                         <div className="empty-icon">🔔</div>
                         <h3>No tienes alertas</h3>
-                        <p>Cuando tengas notificaciones importantes sobre tus proyectos, aparecerán aquí.</p>
+                        <p>
+                          Cuando tengas notificaciones importantes sobre tus
+                          proyectos, aparecerán aquí.
+                        </p>
                       </div>
                     ) : (
                       alertas.map((alerta, index) => (
-                        <div key={index} className={`alert-item ${alerta.tipo}`}>
+                        <div
+                          key={index}
+                          className={`alert-item ${alerta.tipo}`}
+                        >
                           <div className="alert-icon">
                             <AiOutlineBell />
                           </div>

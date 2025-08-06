@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import authService from "../../services/authService";
 import PortfolioManager from "./PortfolioManager";
 import ProgramasManager from "./ProgramasManager";
@@ -6,10 +6,78 @@ import ProyectosManager from "./ProyectosManager";
 import ReunionesManager from "./ReunionesManager";
 import "../Superadmin/Superadmin.css";
 import Sidebar from "./Sidebar";
+import proyectosService from "../../services/proyectosService";
+import axios from "axios";
+import { Bar } from "react-chartjs-2";
+import { Chart, BarElement, CategoryScale, LinearScale } from "chart.js";
+Chart.register(BarElement, CategoryScale, LinearScale);
+
+const CARRERAS = [
+  "Desarrollo de Software",
+  "Mecatrónica",
+  "Redes Inteligentes",
+];
 
 export default function AdminDashboard() {
   const user = authService.getCurrentUser();
   const [vista, setVista] = useState("bienvenida");
+  const [stats, setStats] = useState({
+    totalPortafolios: "-",
+    totalProgramas: "-",
+    totalEstudiantes: "-",
+    totalReuniones: "-",
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // 1. Portafolios
+        const portafolios = await proyectosService.getMisPortafolios();
+
+        // 2. Programas (sumar todos los programas de todos los portafolios)
+        let totalProgramas = 0;
+        for (const p of portafolios) {
+          const programas = await proyectosService.getProgramasByPortafolio(
+            p.id_portafolio
+          );
+          totalProgramas += Array.isArray(programas) ? programas.length : 0;
+        }
+
+        // 3. Estudiantes activos por carrera
+        let totalEstudiantes = 0;
+        for (const carrera of CARRERAS) {
+          const estudiantes = await proyectosService.getEstudiantesByCarrera(
+            carrera
+          );
+          totalEstudiantes += Array.isArray(estudiantes)
+            ? estudiantes.length
+            : 0;
+        }
+
+        // 4. Reuniones programadas
+        let totalReuniones = 0;
+        if (proyectosService.getReunionesCoordinador) {
+          const reuniones = await proyectosService.getReunionesCoordinador();
+          totalReuniones = Array.isArray(reuniones) ? reuniones.length : 0;
+        }
+
+        setStats({
+          totalPortafolios: portafolios.length,
+          totalProgramas,
+          totalEstudiantes,
+          totalReuniones,
+        });
+      } catch (e) {
+        setStats({
+          totalPortafolios: "-",
+          totalProgramas: "-",
+          totalEstudiantes: "-",
+          totalReuniones: "-",
+        });
+      }
+    }
+    fetchStats();
+  }, []);
 
   return (
     <div className="admin-dashboard-container">
@@ -43,124 +111,80 @@ export default function AdminDashboard() {
               <div className="stat-card primary">
                 <div className="stat-icon">📚</div>
                 <div className="stat-content">
-                  <div className="stat-number">-</div>
+                  <div className="stat-number">{stats.totalPortafolios}</div>
                   <div className="stat-label">Total Portafolios</div>
                 </div>
               </div>
-
               <div className="stat-card info">
                 <div className="stat-icon">📅</div>
                 <div className="stat-content">
-                  <div className="stat-number">-</div>
+                  <div className="stat-number">{stats.totalReuniones}</div>
                   <div className="stat-label">Reuniones Programadas</div>
                 </div>
               </div>
-
               <div className="stat-card success">
                 <div className="stat-icon">👥</div>
                 <div className="stat-content">
-                  <div className="stat-number">-</div>
+                  <div className="stat-number">{stats.totalEstudiantes}</div>
                   <div className="stat-label">Estudiantes Activos</div>
                 </div>
               </div>
-
               <div className="stat-card warning">
                 <div className="stat-icon">🏫</div>
                 <div className="stat-content">
-                  <div className="stat-number">-</div>
+                  <div className="stat-number">{stats.totalProgramas}</div>
                   <div className="stat-label">Programas Activos</div>
                 </div>
               </div>
             </div>
 
+            {/* Gráfico de barras */}
+            <div style={{ maxWidth: 500, margin: "2rem auto" }}>
+              <Bar
+                data={{
+                  labels: [
+                    "Portafolios",
+                    "Programas",
+                    "Estudiantes",
+                    "Reuniones",
+                  ],
+                  datasets: [
+                    {
+                      label: "Totales",
+                      data: [
+                        stats.totalPortafolios === "-"
+                          ? 0
+                          : stats.totalPortafolios,
+                        stats.totalProgramas === "-" ? 0 : stats.totalProgramas,
+                        stats.totalEstudiantes === "-"
+                          ? 0
+                          : stats.totalEstudiantes,
+                        stats.totalReuniones === "-" ? 0 : stats.totalReuniones,
+                      ],
+                      backgroundColor: [
+                        "#4e73df",
+                        "#1cc88a",
+                        "#36b9cc",
+                        "#f6c23e",
+                      ],
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  plugins: { legend: { display: false } },
+                }}
+              />
+            </div>
             <div className="dashboard-grid">
-              <div className="dashboard-card">
-                <div className="card-header">
-                  <h3>Acciones Rápidas</h3>
-                </div>
-                <div className="card-content">
-                  <div className="quick-actions">
-                    <button 
-                      className="action-btn primary"
-                      onClick={() => setVista('portafolios')}
-                    >
-                      <div className="action-icon">📚</div>
-                      Gestionar Portafolios
-                    </button>
-                    <button 
-                      className="action-btn info"
-                      onClick={() => setVista('reuniones')}
-                    >
-                      <div className="action-icon">📅</div>
-                      Programar Reunión
-                    </button>
-                    <button 
-                      className="action-btn success"
-                      onClick={() => setVista('programas')}
-                    >
-                      <div className="action-icon">🏫</div>
-                      Gestionar Programas
-                    </button>
-                    <button 
-                      className="action-btn warning"
-                      onClick={() => setVista('proyectos')}
-                    >
-                      <div className="action-icon">📊</div>
-                      Gestionar Proyectos
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-card">
-                <div className="card-header">
-                  <h3>Sistema</h3>
-                </div>
-                <div className="card-content">
-                  <div className="activity-list">
-                    <div className="activity-item success">
-                      <div className="activity-dot"></div>
-                      <div className="activity-content">
-                        <p className="activity-message">Sistema funcionando correctamente</p>
-                        <span className="activity-time">Ahora</span>
-                      </div>
-                    </div>
-                    <div className="activity-item info">
-                      <div className="activity-dot"></div>
-                      <div className="activity-content">
-                        <p className="activity-message">Acceso como Administrador</p>
-                        <span className="activity-time">Sesión activa</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )}
 
         {vista === "portafolios" && <PortfolioManager />}
-
         {vista === "programas" && <ProgramasManager />}
-
         {vista === "proyectos" && <ProyectosManager />}
-
-        {/* 🔥 NUEVA SECCIÓN PARA REUNIONES */}
         {vista === "reuniones" && <ReunionesManager />}
-
-        {vista === "reportes" && (
-          <div className="coming-soon">
-            <h1>Reportes y Estadísticas</h1>
-            <p>Esta sección estará disponible próximamente</p>
-          </div>
-        )}
-
-        {vista === "configuracion" && (
-          <div className="coming-soon">
-            <h1>Configuración del Sistema</h1>
-            <p>Esta sección estará disponible próximamente</p>
-          </div>
-        )}
       </main>
     </div>
   );
