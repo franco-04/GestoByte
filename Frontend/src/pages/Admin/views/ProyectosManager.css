@@ -231,3 +231,121 @@ small {
 .create-program-form .btn-primary:hover {
   background-color: #0056b3;
 }
+
+/* Reportes.css */
+
+.reportes-section {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.reportes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.btn-primary {
+  background-color: #4e73df;
+  color: #fff;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #375ab7;
+}
+
+.reportes-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4e73df;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.reporte-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.reporte-table th, .reporte-table td {
+  border: 1px solid #e3e6f0;
+  padding: 0.7rem 1.2rem;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.reporte-table th {
+  background: #f4f6fb;
+  color: #4e73df;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.reporte-table tbody tr:nth-child(even) {
+  background: #f8f9fc;
+}
+
+.reporte-table tbody tr:hover {
+  background: #eaf1ff;
+}
+
+.loader {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #4e73df;
+  margin: 3rem 0;
+}
+
+/*Graficas*/
+.graficas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.grafica-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px #0001;
+  padding: 1.5rem 1rem;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.grafica-card h3 {
+  color: #4e73df;
+  margin-bottom: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+}

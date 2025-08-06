@@ -360,7 +360,7 @@ export const getEstudiantesByCarrera = async (req, res) => {
   try {
     const carrera = req.params.carrera;
     const [estudiantes] = await pool.query(
-      `SELECT u.id_usuario, u.nombre, u.apellido, u.email
+      `SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.carrera
        FROM usuarios u
        WHERE u.carrera = ? AND u.rol = 'estudiante'`,
       [carrera]

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Bar, Pie } from "react-chartjs-2";
 import proyectosService from "../../../services/proyectosService";
+import "./ProyectosManager.css";
 import {
   Chart,
   BarElement,
@@ -25,6 +26,10 @@ export default function Bienvenida({ user }) {
     labels: [],
     data: [],
   });
+  const [programasPorPortafolio, setProgramasPorPortafolio] = useState({
+    labels: [],
+    data: [],
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -38,7 +43,7 @@ export default function Bienvenida({ user }) {
         portafolios = await proyectosService.getMisPortafolios();
       }
 
-      // NUEVO: Recorrer todos los portafolios y juntar programas y proyectos
+      // Gráfica 1: Proyectos por Programa
       let labels = [];
       let dataArr = [];
       for (const portafolio of portafolios) {
@@ -55,7 +60,7 @@ export default function Bienvenida({ user }) {
       }
       setProyectosPorPrograma({ labels, data: dataArr });
 
-      // Gráfica 2: Estudiantes por carrera (igual que antes)
+      // Gráfica 2: Estudiantes por carrera
       const labelsCarrera = [];
       const dataCarrera = [];
       for (const carrera of CARRERAS) {
@@ -66,6 +71,18 @@ export default function Bienvenida({ user }) {
         dataCarrera.push(estudiantes.length);
       }
       setEstudiantesPorCarrera({ labels: labelsCarrera, data: dataCarrera });
+
+      // Gráfica 3: Programas por Portafolio (NUEVA)
+      let labelsPP = [];
+      let dataPP = [];
+      for (const portafolio of portafolios) {
+        const programas = await proyectosService.getProgramasByPortafolio(
+          portafolio.id_portafolio
+        );
+        labelsPP.push(portafolio.nombre);
+        dataPP.push(programas.length);
+      }
+      setProgramasPorPortafolio({ labels: labelsPP, data: dataPP });
     }
     fetchData();
   }, [user]);
@@ -94,45 +111,68 @@ export default function Bienvenida({ user }) {
       </div>
 
       {/* Gráfica de Proyectos por Programa */}
-      <div style={{ maxWidth: 500, margin: "2rem auto" }}>
-        <h3 style={{ textAlign: "center" }}>Proyectos por Programa</h3>
-        <Bar
-          data={{
-            labels: proyectosPorPrograma.labels,
-            datasets: [
-              {
-                label: "Proyectos",
-                data: proyectosPorPrograma.data,
-                backgroundColor: "#4e73df",
-              },
-            ],
-          }}
-          options={{
-            responsive: true,
-            plugins: { legend: { display: false } },
-          }}
-        />
-      </div>
+      <div className="graficas-grid">
+        <div className="grafica-card">
+          <h3>Proyectos por Programa</h3>
+          <Bar
+            data={{
+              labels: proyectosPorPrograma.labels,
+              datasets: [
+                {
+                  label: "Proyectos",
+                  data: proyectosPorPrograma.data,
+                  backgroundColor: "#4e73df",
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              plugins: { legend: { display: false } },
+            }}
+          />
+        </div>
 
-      {/* Gráfica de Estudiantes por Carrera */}
-      <div style={{ maxWidth: 400, margin: "2rem auto" }}>
-        <h3 style={{ textAlign: "center" }}>Estudiantes por Carrera</h3>
-        <Pie
-          data={{
-            labels: estudiantesPorCarrera.labels,
-            datasets: [
-              {
-                label: "Estudiantes",
-                data: estudiantesPorCarrera.data,
-                backgroundColor: ["#4e73df", "#1cc88a", "#f6c23e"],
-              },
-            ],
-          }}
-          options={{
-            responsive: true,
-            plugins: { legend: { position: "bottom" } },
-          }}
-        />
+          {/* Gráfica de Programas por Portafolio (NUEVA) */}
+        <div className="grafica-card">
+          <h3>Programas por Portafolio</h3>
+          <Bar
+            data={{
+              labels: programasPorPortafolio.labels,
+              datasets: [
+                {
+                  label: "Programas",
+                  data: programasPorPortafolio.data,
+                  backgroundColor: "#1cc88a",
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              plugins: { legend: { display: false } },
+            }}
+          />
+        </div>
+
+        {/* Gráfica de Estudiantes por Carrera */}
+        <div className="grafica-card">
+          <h3>Estudiantes por Carrera</h3>
+          <Pie
+            data={{
+              labels: estudiantesPorCarrera.labels,
+              datasets: [
+                {
+                  label: "Estudiantes",
+                  data: estudiantesPorCarrera.data,
+                  backgroundColor: ["#4e73df", "#1cc88a", "#f6c23e"],
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              plugins: { legend: { position: "bottom" } },
+            }}
+          />
+        </div>
       </div>
     </div>
   );

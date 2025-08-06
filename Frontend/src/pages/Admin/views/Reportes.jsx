@@ -23,7 +23,12 @@ export default function Reportes() {
         const programas = await proyectosService.getProgramasByPortafolio(
           p.id_portafolio
         );
-        allProgramas = allProgramas.concat(programas);
+        // Agrega el nombre del portafolio a cada programa
+        const programasConPortafolio = programas.map(pr => ({
+          ...pr,
+          nombre_portafolio: p.nombre
+        }));
+        allProgramas = allProgramas.concat(programasConPortafolio);
         for (const prog of programas) {
           const proyectos = await proyectosService.getProyectosByPrograma(
             prog.id_programa
@@ -43,7 +48,11 @@ export default function Reportes() {
       for (const carrera of carreras) {
         const estudiantesCarrera =
           await proyectosService.getEstudiantesByCarrera(carrera);
-        allEstudiantes = allEstudiantes.concat(estudiantesCarrera);
+        const estudiantesConCarrera = estudiantesCarrera.map(e => ({
+          ...e,
+          carrera
+        }));
+        allEstudiantes = allEstudiantes.concat(estudiantesConCarrera);
       }
       setEstudiantes(allEstudiantes);
 
@@ -62,11 +71,24 @@ export default function Reportes() {
     doc.text("Reporte de Programas", 10, doc.lastAutoTable.finalY + 10);
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 15,
-      head: [["ID", "Nombre", "Portafolio"]],
+      head: [["ID", "Nombre", "Descripción", "Portafolio"]],
       body: programas.map((pr) => [
         pr.id_programa,
         pr.nombre,
-        pr.id_portafolio,
+        pr.descripcion,
+        pr.nombre_portafolio
+      ]),
+    });
+    doc.text("Reporte de Estudiantes", 10, doc.lastAutoTable.finalY + 10);
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 15,
+      head: [["ID", "Nombre", "Apellido", "Email", "Carrera"]],
+      body: estudiantes.map((e) => [
+        e.id_usuario,
+        e.nombre,
+        e.apellido,
+        e.email,
+        e.carrera
       ]),
     });
     doc.save("reporte.pdf");
@@ -90,7 +112,7 @@ export default function Reportes() {
               <table className="reporte-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    {/* <th>ID</th> */}
                     <th>Nombre</th>
                     <th>Carrera</th>
                   </tr>
@@ -98,7 +120,7 @@ export default function Reportes() {
                 <tbody>
                   {portafolios.map((p) => (
                     <tr key={p.id_portafolio}>
-                      <td>{p.id_portafolio}</td>
+                      {/* <td>{p.id_portafolio}</td> */}
                       <td>{p.nombre}</td>
                       <td>{p.carrera}</td>
                     </tr>
@@ -113,17 +135,19 @@ export default function Reportes() {
               <table className="reporte-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    {/* <th>ID</th> */}
                     <th>Nombre</th>
+                    <th>Descripción</th>
                     <th>Portafolio</th>
                   </tr>
                 </thead>
                 <tbody>
                   {programas.map((pr) => (
                     <tr key={pr.id_programa}>
-                      <td>{pr.id_programa}</td>
+                      {/* <td>{pr.id_programa}</td> */}
                       <td>{pr.nombre}</td>
-                      <td>{pr.id_portafolio}</td>
+                      <td>{pr.descripcion}</td>
+                      <td>{pr.nombre_portafolio}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -136,7 +160,7 @@ export default function Reportes() {
               <table className="reporte-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    {/* <th>ID</th> */}
                     <th>Nombre</th>
                     <th>Apellido</th>
                     <th>Email</th>
@@ -146,7 +170,7 @@ export default function Reportes() {
                 <tbody>
                   {estudiantes.map((e) => (
                     <tr key={e.id_usuario}>
-                      <td>{e.id_usuario}</td>
+                      {/* <td>{e.id_usuario}</td> */}
                       <td>{e.nombre}</td>
                       <td>{e.apellido}</td>
                       <td>{e.email}</td>
