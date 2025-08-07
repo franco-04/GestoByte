@@ -18,7 +18,7 @@ export const createPortfolio = async (req, res) => {
 
     // Insertar asesores seleccionados en portafolio_profesores
     if (Array.isArray(asesores) && asesores.length > 0) {
-      const values = asesores.map(id_asesor => [id_portafolio, id_asesor]);
+      const values = asesores.map((id_asesor) => [id_portafolio, id_asesor]);
       await connection.query(
         "INSERT INTO portafolio_profesores (id_portafolio, id_asesores) VALUES ?",
         [values]
@@ -286,7 +286,6 @@ export const getStudentPortfolioDetails = async (req, res) => {
   }
 };
 
-
 // Funciones del controlador de proyectos del estudiante
 export const getProgramasPortafolio = async (req, res) => {
   const { id_portafolio } = req.params;
@@ -319,20 +318,20 @@ export const getAsesoresPortafolio = async (req, res) => {
 
 export const createPrograma = async (req, res) => {
   const { id_portafolio } = req.params;
-  const { nombre, descripcion, asesores } = req.body;
+  const { nombre, descripcion, categoria, asesores } = req.body;
 
   try {
     // Crear el programa
     const [result] = await pool.query(
-      "INSERT INTO programas (id_portafolio, nombre, descripcion) VALUES (?, ?, ?)",
-      [id_portafolio, nombre, descripcion]
+      "INSERT INTO programas (id_portafolio, nombre, descripcion, categoria) VALUES (?, ?, ?, ?)",
+      [id_portafolio, nombre, descripcion, categoria]
     );
 
     const id_programa = result.insertId;
 
     // Insertar asesores en la tabla programa_asesores
     if (Array.isArray(asesores) && asesores.length > 0) {
-      const values = asesores.map(id_asesor => [id_programa, id_asesor]);
+      const values = asesores.map((id_asesor) => [id_programa, id_asesor]);
       await pool.query(
         "INSERT INTO programa_asesores (id_programa, id_asesor) VALUES ?",
         [values]
@@ -371,7 +370,9 @@ export const getEstudiantesPrograma = async (req, res) => {
       [id_programa]
     );
     if (portafolio.length === 0) {
-      return res.status(404).json({ error: "Programa o portafolio no encontrado" });
+      return res
+        .status(404)
+        .json({ error: "Programa o portafolio no encontrado" });
     }
     const carrera = portafolio[0].carrera;
     // Traer estudiantes de esa carrera
@@ -401,12 +402,12 @@ export const createProyecto = async (req, res) => {
 
     // CORRECCIÓN: Insertar estudiantes con los roles correctos
     if (Array.isArray(estudiantes) && estudiantes.length > 0) {
-      const values = estudiantes.map(id_estudiante => {
+      const values = estudiantes.map((id_estudiante) => {
         // Si el estudiante es el líder, asignar rol 'lider', sino 'miembro'
-        const rol = (id_estudiante === parseInt(lider)) ? 'lider' : 'miembro';
+        const rol = id_estudiante === parseInt(lider) ? "lider" : "miembro";
         return [id_proyecto, id_estudiante, rol];
       });
-      
+
       // IMPORTANTE: Agregar la columna 'rol' en la query
       await connection.query(
         "INSERT INTO proyecto_estudiantes (id_proyecto, id_estudiante, rol) VALUES ?",
@@ -418,7 +419,7 @@ export const createProyecto = async (req, res) => {
     res.status(201).json({ message: "Proyecto creado correctamente" });
   } catch (error) {
     await connection.rollback();
-    console.error('Error al crear proyecto:', error);
+    console.error("Error al crear proyecto:", error);
     res.status(500).json({ error: "Error al crear proyecto" });
   } finally {
     connection.release();
@@ -436,13 +437,15 @@ export const getEstudiantesProyecto = async (req, res) => {
     );
     res.json(rows);
   } catch (error) {
-    res.status(500).json({ error: "Error al obtener estudiantes del proyecto" });
+    res
+      .status(500)
+      .json({ error: "Error al obtener estudiantes del proyecto" });
   }
 };
 
 //Funcion nueva para arreglalo lo de los portafolios de los profes
 export const getPortafoliosAsignados = async (req, res) => {
-  const id_profesor = req.user.id; 
+  const id_profesor = req.user.id;
   try {
     const [rows] = await pool.query(
       `SELECT p.* 

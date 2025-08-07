@@ -13,6 +13,7 @@ export default function ProgramasManager() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [categoria, setCategoria] = useState("Social");
 
   useEffect(() => {
     fetchMisPortafolios();
@@ -35,9 +36,13 @@ export default function ProgramasManager() {
     setDescripcion("");
     setAsesoresSeleccionados([]);
     try {
-      const resProgramas = await proyectosService.getProgramasByPortafolio(portafolio.id_portafolio);
+      const resProgramas = await proyectosService.getProgramasByPortafolio(
+        portafolio.id_portafolio
+      );
       setProgramas(resProgramas);
-      const resAsesores = await proyectosService.getAsesoresPortafolio(portafolio.id_portafolio);
+      const resAsesores = await proyectosService.getAsesoresPortafolio(
+        portafolio.id_portafolio
+      );
       setAsesores(resAsesores);
     } catch (error) {
       setError("Error al cargar datos del portafolio");
@@ -52,16 +57,22 @@ export default function ProgramasManager() {
     setError("");
     setSuccess("");
     try {
-      await proyectosService.createPrograma(portafolioSeleccionado.id_portafolio, {
-        nombre,
-        descripcion,
-        asesores: asesoresSeleccionados,
-      });
+      await proyectosService.createPrograma(
+        portafolioSeleccionado.id_portafolio,
+        {
+          nombre,
+          descripcion,
+          categoria,
+          asesores: asesoresSeleccionados,
+        }
+      );
       setSuccess("Programa creado correctamente");
       setNombre("");
       setDescripcion("");
       setAsesoresSeleccionados([]);
-      const resProgramas = await proyectosService.getProgramasByPortafolio(portafolioSeleccionado.id_portafolio);
+      const resProgramas = await proyectosService.getProgramasByPortafolio(
+        portafolioSeleccionado.id_portafolio
+      );
       setProgramas(resProgramas);
     } catch (error) {
       setError("Error al crear el programa");
@@ -113,7 +124,12 @@ export default function ProgramasManager() {
             <div className="portfolio-grid">
               {misPortafolios.map((p) => (
                 <div
-                  className={`portfolio-card${portafolioSeleccionado && portafolioSeleccionado.id_portafolio === p.id_portafolio ? " selected" : ""}`}
+                  className={`portfolio-card${
+                    portafolioSeleccionado &&
+                    portafolioSeleccionado.id_portafolio === p.id_portafolio
+                      ? " selected"
+                      : ""
+                  }`}
                   key={p.id_portafolio}
                   onClick={() => seleccionarPortafolio(p)}
                   style={{ cursor: "pointer" }}
@@ -132,7 +148,8 @@ export default function ProgramasManager() {
           <div className="admin-card" style={{ marginTop: "2rem" }}>
             <div className="card-header">
               <h3>
-                Programas de {portafolioSeleccionado.nombre} ({portafolioSeleccionado.carrera})
+                Programas de {portafolioSeleccionado.nombre} (
+                {portafolioSeleccionado.carrera})
               </h3>
             </div>
             <ul>
@@ -169,14 +186,33 @@ export default function ProgramasManager() {
                   />
                 </div>
                 <div className="form-group">
+                  <label className="form-label">Categoría del programa</label>
+                  <select
+                    className="form-select"
+                    value={categoria}
+                    onChange={(e) => setCategoria(e.target.value)}
+                    required
+                  >
+                    <option value="Social">Social</option>
+                    <option value="Estrategico">Estratégico</option>
+                    <option value="Operativo">Operativo</option>
+                    <option value="Investigacion">Investigación</option>
+                    <option value="Personal">Personal</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label className="form-label">Asesores</label>
                   <select
                     multiple
                     className="form-select"
                     value={asesoresSeleccionados}
-                    onChange={e =>
+                    onChange={(e) =>
                       setAsesoresSeleccionados(
-                        Array.from(e.target.selectedOptions, option => option.value)
+                        Array.from(
+                          e.target.selectedOptions,
+                          (option) => option.value
+                        )
                       )
                     }
                     required

@@ -21,25 +21,26 @@ export default function ProyectosManager() {
   const [showCreateProg, setShowCreateProg] = useState(false);
   const [newProgNombre, setNewProgNombre] = useState("");
   const [newProgDesc, setNewProgDesc] = useState("");
+  const [newProgCategoria, setNewProgCategoria] = useState("Social");
 
   useEffect(() => {
     fetchMisPortafolios();
   }, []);
 
   const fetchMisPortafolios = async () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("userData") || "{}");
-    let data = [];
-    if (user.rol === "administrador") {
-      data = await proyectosService.getPortafoliosAsignados();
-    } else {
-      data = await proyectosService.getMisPortafolios();
+    try {
+      const user = JSON.parse(localStorage.getItem("userData") || "{}");
+      let data = [];
+      if (user.rol === "administrador") {
+        data = await proyectosService.getPortafoliosAsignados();
+      } else {
+        data = await proyectosService.getMisPortafolios();
+      }
+      setMisPortafolios(data);
+    } catch {
+      setMisPortafolios([]);
     }
-    setMisPortafolios(data);
-  } catch {
-    setMisPortafolios([]);
-  }
-};
+  };
   const resetForm = () => {
     setProgramas([]);
     setProyectos([]);
@@ -97,6 +98,7 @@ export default function ProyectosManager() {
         {
           nombre: newProgNombre,
           descripcion: newProgDesc,
+          categoria: newProgCategoria,
           asesores: [user.id],
         }
       );
@@ -230,6 +232,22 @@ export default function ProyectosManager() {
                     onChange={(e) => setNewProgDesc(e.target.value)}
                   />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Categoría del Programa</label>
+                  <select
+                    className="form-select"
+                    value={newProgCategoria}
+                    onChange={(e) => setNewProgCategoria(e.target.value)}
+                    required
+                  >
+                    <option value="Social">Social</option>
+                    <option value="Estrategico">Estratégico</option>
+                    <option value="Operativo">Operativo</option>
+                    <option value="Investigacion">Investigación</option>
+                    <option value="Personal">Personal</option>
+                  </select>
+                </div>
+
                 <div className="form-actions">
                   <button
                     className="btn btn-primary"

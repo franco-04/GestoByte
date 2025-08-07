@@ -19,6 +19,12 @@ import {
 } from '../controllers/evidenceController.js';
 import { getEstudiantesByCarrera } from '../controllers/studentController.js';
 
+import {
+  getEstadisticasGenerales,
+  getProyectosConEvidencias,
+  getEstudiantesPorCarrera
+} from '../controllers/evidenceController.js';
+
 const router = express.Router();
 
 router.post('/evidencias/upload', authenticate, upload.single('archivo'), uploadEvidence);
@@ -40,4 +46,8 @@ router.get('/evidencias/notificaciones', authenticate, getEvidenceNotifications)
 router.put('/evidencias/notificaciones/:id_notificacion/read', authenticate, markNotificationAsRead);
 
 router.get('/auth/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
+
+router.get('/reportes/estadisticas-generales', authenticate, getEstadisticasGenerales);
+router.get('/reportes/proyectos-evidencias', authenticate, getProyectosConEvidencias);
+router.get('/reportes/estudiantes', authenticate, getEstudiantesPorCarrera);
 export default router;

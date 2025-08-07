@@ -163,6 +163,42 @@ const proyectosService = {
       throw errorHandler(error);
     }
   },
+  // Obtener proyectos con estadísticas de evidencias
+  getProyectosConEvidencias: async () => {
+    try {
+      const res = await api.get("/reportes/proyectos-evidencias");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+
+  // Obtener estadísticas generales
+  getEstadisticasGenerales: async () => {
+    try {
+      const res = await api.get("/reportes/estadisticas-generales");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+  getEvidenciasByProyecto: async (idProyecto) => {
+    try {
+      const res = await api.get(`/auth/proyectos/${idProyecto}/evidencias`);
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+  // Obtener estudiantes por carrera (todos)
+  getEstudiantesPorCarrera: async () => {
+    try {
+      const res = await api.get("/reportes/estudiantes");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
 };
 
 export default proyectosService;

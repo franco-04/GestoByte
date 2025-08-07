@@ -821,3 +821,89 @@ export const getUnifiedEvidenceStats = async (req, res) => {
     res.status(500).json({ error: "Error al obtener estadísticas" });
   }
 };
+export const getEstadisticasGenerales = async (req, res) => {
+  try {
+    const [stats] = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT p.id_portafolio) as total_portafolios,
+        COUNT(DISTINCT pr.id_programa) as total_programas,
+        COUNT(DISTINCT py.id_proyecto) as total_proyectos,
+        COUNT(DISTINCT pe.id_estudiante) as total_estudiantes,
+        COUNT(DISTINCT ep.id_evidencia) as total_evidencias,
+        AVG(ev_proyecto.total_ev) as promedio_evidencias_por_proyecto,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'aprobado' THEN ep.id_evidencia END) as evidencias_aprobadas,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'pendiente' THEN ep.id_evidencia END) as evidencias_pendientes,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'rechazado' THEN ep.id_evidencia END) as evidencias_rechazadas
+      FROM portafolios p
+      LEFT JOIN programas pr ON p.id_portafolio = pr.id_portafolio
+      LEFT JOIN proyectos py ON pr.id_programa = py.id_programa
+      LEFT JOIN proyecto_estudiantes pe ON py.id_proyecto = pe.id_proyecto
+      LEFT JOIN evidencias_portafolio ep ON py.id_proyecto = ep.id_proyecto AND ep.activo = 1
+      LEFT JOIN (
+        SELECT id_proyecto, COUNT(*) as total_ev 
+        FROM evidencias_portafolio 
+        WHERE activo = 1 
+        GROUP BY id_proyecto
+      ) ev_proyecto ON py.id_proyecto = ev_proyecto.id_proyecto
+      WHERE p.activo = 1 AND pr.activo = 1 AND py.activo = 1
+    `);
+
+    res.json(stats[0]);
+  } catch (error) {
+    console.error('Error al obtener estadísticas generales:', error);
+    res.status(500).json({ error: "Error al obtener estadísticas" });
+  }
+};
+
+// Obtener proyectos con estadísticas de evidencias
+export const getProyectosConEvidencias = async (req, res) => {
+  try {
+    const [proyectos] = await pool.query(`
+      SELECT 
+        py.id_proyecto,
+        py.nombre as proyecto,
+        pr.nombre as programa,
+        p.nombre as portafolio,
+        COUNT(DISTINCT ep.id_evidencia) as total_evidencias,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'aprobado' THEN ep.id_evidencia END) as evidencias_aprobadas,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'pendiente' THEN ep.id_evidencia END) as evidencias_pendientes,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'rechazado' THEN ep.id_evidencia END) as evidencias_rechazadas,
+        COUNT(DISTINCT pe.id_estudiante) as total_estudiantes
+      FROM proyectos py
+      INNER JOIN programas pr ON py.id_programa = pr.id_programa
+      INNER JOIN portafolios p ON pr.id_portafolio = p.id_portafolio
+      LEFT JOIN proyecto_estudiantes pe ON py.id_proyecto = pe.id_proyecto
+      LEFT JOIN evidencias_portafolio ep ON py.id_proyecto = ep.id_proyecto AND ep.activo = 1
+      WHERE py.activo = 1
+      GROUP BY py.id_proyecto, py.nombre, pr.nombre, p.nombre
+      ORDER BY p.nombre, pr.nombre, py.nombre
+    `);
+
+    res.json(proyectos);
+  } catch (error) {
+    console.error('Error al obtener proyectos con evidencias:', error);
+    res.status(500).json({ error: "Error al obtener proyectos" });
+  }
+};
+
+// Obtener estudiantes por carrera
+export const getEstudiantesPorCarrera = async (req, res) => {
+  try {
+    const [estudiantes] = await pool.query(`
+      SELECT 
+        u.id_usuario,
+        u.nombre,
+        u.apellido,
+        u.email,
+        u.carrera
+      FROM usuarios u
+      WHERE u.rol = 'estudiante' AND u.activo = 1
+      ORDER BY u.carrera, u.apellido, u.nombre
+    `);
+
+    res.json(estudiantes);
+  } catch (error) {
+    console.error('Error al obtener estudiantes:', error);
+    res.status(500).json({ error: "Error al obtener estudiantes" });
+  }
+};

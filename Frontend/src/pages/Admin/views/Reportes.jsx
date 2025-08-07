@@ -3,7 +3,7 @@ import proyectosService from "../../../services/proyectosService";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { FileText, Users, BookOpen, FolderOpen, TrendingUp, Award, Clock, AlertCircle, Download, Printer } from "lucide-react";
+import { FileText, Users, BookOpen, FolderOpen, TrendingUp, Award, Download, Printer } from "lucide-react";
 import "./ProyectosManager.css";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -21,89 +21,60 @@ export default function Reportes() {
     async function fetchData() {
       setLoading(true);
       try {
-        // Obtener portafolios
-        const portafoliosData = await proyectosService.getPortafoliosAsignados();
-        setPortafolios(portafoliosData);
-
-        let allProgramas = [];
-        let allProyectos = [];
-        let evidenciasData = [];
-
-        // Obtener programas y proyectos
-        for (const p of portafoliosData) {
-          const programas = await proyectosService.getProgramasByPortafolio(p.id_portafolio);
-          const programasConPortafolio = programas.map(pr => ({
-            ...pr,
-            nombre_portafolio: p.nombre
-          }));
-          allProgramas = allProgramas.concat(programasConPortafolio);
-          
-          for (const prog of programas) {
-            const proyectos = await proyectosService.getProyectosByPrograma(prog.id_programa);
-            const proyectosConInfo = proyectos.map(proy => ({
-              ...proy,
-              nombre_programa: prog.nombre,
-              nombre_portafolio: p.nombre
-            }));
-            allProyectos = allProyectos.concat(proyectosConInfo);
-
-            // Para cada proyecto, obtener estadísticas de evidencias
-            for (const proyecto of proyectos) {
-              try {
-                // Aquí necesitarías agregar una función al service para obtener evidencias por proyecto
-                // Por ahora simularemos algunos datos básicos
-                evidenciasData.push({
-                  proyecto: proyecto.nombre,
-                  id_proyecto: proyecto.id_proyecto,
-                  programa: prog.nombre,
-                  portafolio: p.nombre,
-                  // Estos datos los obtendrías de una función específica
-                  total_evidencias: Math.floor(Math.random() * 20) + 5,
-                  evidencias_aprobadas: Math.floor(Math.random() * 15) + 3,
-                  evidencias_pendientes: Math.floor(Math.random() * 5) + 1,
-                  evidencias_rechazadas: Math.floor(Math.random() * 3)
-                });
-              } catch (error) {
-                console.error("Error obteniendo evidencias:", error);
-              }
-            }
-          }
-        }
-
-        setProgramas(allProgramas);
-        setProyectos(allProyectos);
-        setEvidencias(evidenciasData);
-
-        // Obtener estudiantes por carrera
-        const carreras = ["Desarrollo de Software", "Mecatrónica", "Redes Inteligentes"];
-        let allEstudiantes = [];
-        for (const carrera of carreras) {
-          const estudiantesCarrera = await proyectosService.getEstudiantesByCarrera(carrera);
-          const estudiantesConCarrera = estudiantesCarrera.map(e => ({
-            ...e,
-            carrera
-          }));
-          allEstudiantes = allEstudiantes.concat(estudiantesConCarrera);
-        }
-        setEstudiantes(allEstudiantes);
-
-        // Calcular estadísticas generales
-        const totalEvidencias = evidenciasData.reduce((sum, p) => sum + p.total_evidencias, 0);
-        const totalAprobadas = evidenciasData.reduce((sum, p) => sum + p.evidencias_aprobadas, 0);
-        const totalPendientes = evidenciasData.reduce((sum, p) => sum + p.evidencias_pendientes, 0);
-        const totalRechazadas = evidenciasData.reduce((sum, p) => sum + p.evidencias_rechazadas, 0);
-
+        // Obtener estadísticas generales
+        const stats = await proyectosService.getEstadisticasGenerales();
         setEstadisticasGenerales({
-          totalPortafolios: portafoliosData.length,
-          totalProgramas: allProgramas.length,
-          totalProyectos: allProyectos.length,
-          totalEstudiantes: allEstudiantes.length,
-          totalEvidencias,
-          totalAprobadas,
-          totalPendientes,
-          totalRechazadas,
-          promedioEvidenciasPorProyecto: allProyectos.length > 0 ? (totalEvidencias / allProyectos.length).toFixed(1) : 0
+          totalPortafolios: stats.total_portafolios,
+          totalProgramas: stats.total_programas,
+          totalProyectos: stats.total_proyectos,
+          totalEstudiantes: stats.total_estudiantes,
+          totalEvidencias: stats.total_evidencias,
+          totalAprobadas: stats.evidencias_aprobadas,
+          totalPendientes: stats.evidencias_pendientes,
+          totalRechazadas: stats.evidencias_rechazadas,
+          promedioEvidenciasPorProyecto: stats.promedio_evidencias_por_proyecto ? Number(stats.promedio_evidencias_por_proyecto).toFixed(1) : 0
         });
+
+        // Obtener proyectos con estadísticas de evidencias
+        const proyectosEvidencias = await proyectosService.getProyectosConEvidencias();
+        setProyectos(proyectosEvidencias);
+
+        // Extraer portafolios y programas únicos de los proyectos
+        const portafoliosMap = {};
+        const programasMap = {};
+        proyectosEvidencias.forEach(proy => {
+          if (!portafoliosMap[proy.portafolio]) {
+            portafoliosMap[proy.portafolio] = {
+              nombre: proy.portafolio,
+              carrera: "", // Si tienes carrera en tu endpoint, ponlo aquí
+            };
+          }
+          if (!programasMap[proy.programa]) {
+            programasMap[proy.programa] = {
+              nombre: proy.programa,
+              nombre_portafolio: proy.portafolio,
+              descripcion: "", // Si tienes descripción en tu endpoint, ponlo aquí
+            };
+          }
+        });
+        setPortafolios(Object.values(portafoliosMap));
+        setProgramas(Object.values(programasMap));
+
+        // Evidencias por proyecto (ya viene en proyectosEvidencias)
+        setEvidencias(proyectosEvidencias.map(proy => ({
+          proyecto: proy.proyecto,
+          id_proyecto: proy.id_proyecto,
+          programa: proy.programa,
+          portafolio: proy.portafolio,
+          total_evidencias: proy.total_evidencias,
+          evidencias_aprobadas: proy.evidencias_aprobadas,
+          evidencias_pendientes: proy.evidencias_pendientes,
+          evidencias_rechazadas: proy.evidencias_rechazadas
+        })));
+
+        // Obtener estudiantes por carrera (todos)
+        const estudiantesData = await proyectosService.getEstudiantesPorCarrera();
+        setEstudiantes(estudiantesData);
 
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -114,170 +85,170 @@ export default function Reportes() {
     fetchData();
   }, []);
 
-const exportarPDF = () => {
-  const doc = new jsPDF();
-  const leftMargin = 20;
-  let yPos = 30;
+  const exportarPDF = () => {
+    const doc = new jsPDF();
+    const leftMargin = 20;
+    let yPos = 30;
 
-  const addHeader = (title = " REPORTE INTEGRAL DEL SISTEMA") => {
-    doc.setFontSize(16);
+    const addHeader = (title = " REPORTE INTEGRAL DEL SISTEMA") => {
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(33, 37, 41);
+      doc.text(title, leftMargin, 15);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100);
+      doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')}`, leftMargin, 22);
+    };
+
+    const addFooter = () => {
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text(`Página ${pageCount}`, leftMargin, 290);
+    };
+
+    const addSectionTitle = (title) => {
+      doc.setDrawColor(200);
+      doc.line(leftMargin, yPos + 2, 190, yPos + 2); // línea divisoria
+      yPos += 5;
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(44, 62, 80);
+      doc.text(title, leftMargin, yPos);
+      yPos += 8;
+    };
+
+    // 📘 Portada
+    doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(33, 37, 41);
-    doc.text(title, leftMargin, 15);
-    doc.setFontSize(10);
+    doc.setTextColor(52, 73, 94);
+    doc.text(" Reporte General del Sistema", 35, 80);
+    doc.setFontSize(14);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(100);
-    doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')}`, leftMargin, 22);
-  };
-
-  const addFooter = () => {
-    const pageCount = doc.internal.getNumberOfPages();
-    doc.setFontSize(10);
-    doc.setTextColor(150);
-    doc.text(`Página ${pageCount}`, leftMargin, 290);
-  };
-
-  const addSectionTitle = (title) => {
-    doc.setDrawColor(200);
-    doc.line(leftMargin, yPos + 2, 190, yPos + 2); // línea divisoria
-    yPos += 5;
-    doc.setFontSize(13);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(44, 62, 80);
-    doc.text(title, leftMargin, yPos);
-    yPos += 8;
-  };
-
-  // 📘 Portada
-  doc.setFontSize(26);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(52, 73, 94);
-  doc.text(" Reporte General del Sistema", 35, 80);
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(90);
-  doc.text("Generado automáticamente por el sistema de gestión", 35, 90);
-  doc.setFont("helvetica", "italic");
-  doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 35, 100);
-  doc.addPage();
-
-  // 📈 Estadísticas Generales
-  addHeader();
-  addFooter();
-  addSectionTitle(" ESTADÍSTICAS GENERALES");
-
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(34);
-  const stats = estadisticasGenerales;
-  const estadisticasTexto = [
-    `Total de Portafolios: ${stats.totalPortafolios}`,
-    `Total de Programas: ${stats.totalProgramas}`,
-    `Total de Proyectos: ${stats.totalProyectos}`,
-    `Total de Estudiantes: ${stats.totalEstudiantes}`,
-    `Total de Evidencias: ${stats.totalEvidencias}`,
-    `Promedio Evidencias/Proyecto: ${stats.promedioEvidenciasPorProyecto}`
-  ];
-  estadisticasTexto.forEach(line => {
-    doc.text(line, leftMargin, yPos);
-    yPos += 7;
-  });
-
-  yPos += 12;
-
-  // 📁 Portafolios
-  addSectionTitle("PORTAFOLIOS");
-  autoTable(doc, {
-    startY: yPos,
-    head: [["Nombre", "Carrera", "Programas", "Proyectos"]],
-    body: portafolios.map(p => [
-      p.nombre,
-      p.carrera,
-      programas.filter(pr => pr.nombre_portafolio === p.nombre).length,
-      proyectos.filter(proy => proy.nombre_portafolio === p.nombre).length
-    ]),
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [52, 152, 219], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 249, 250] }
-  });
-  yPos = doc.lastAutoTable.finalY + 10;
-
-  if (yPos > 250) {
+    doc.setTextColor(90);
+    doc.text("Generado automáticamente por el sistema de gestión", 35, 90);
+    doc.setFont("helvetica", "italic");
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, 35, 100);
     doc.addPage();
-    yPos = 30;
+
+    // 📈 Estadísticas Generales
     addHeader();
     addFooter();
-  }
+    addSectionTitle(" ESTADÍSTICAS GENERALES");
 
-  // 📚 Programas
-  addSectionTitle(" PROGRAMAS");
-  autoTable(doc, {
-    startY: yPos,
-    head: [["Nombre", "Descripción", "Portafolio", "Proyectos"]],
-    body: programas.map(pr => [
-      pr.nombre,
-      pr.descripcion?.substring(0, 40) + "..." || "Sin descripción",
-      pr.nombre_portafolio,
-      proyectos.filter(proy => proy.nombre_programa === pr.nombre).length
-    ]),
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [46, 204, 113], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 249, 250] }
-  });
-  yPos = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(34);
+    const stats = estadisticasGenerales;
+    const estadisticasTexto = [
+      `Total de Portafolios: ${stats.totalPortafolios}`,
+      `Total de Programas: ${stats.totalProgramas}`,
+      `Total de Proyectos: ${stats.totalProyectos}`,
+      `Total de Estudiantes: ${stats.totalEstudiantes}`,
+      `Total de Evidencias: ${stats.totalEvidencias}`,
+      `Promedio Evidencias/Proyecto: ${stats.promedioEvidenciasPorProyecto}`
+    ];
+    estadisticasTexto.forEach(line => {
+      doc.text(line, leftMargin, yPos);
+      yPos += 7;
+    });
 
-  if (yPos > 250) {
-    doc.addPage();
-    yPos = 30;
-    addHeader();
-    addFooter();
-  }
+    yPos += 12;
 
-  // 🚀 Proyectos y Evidencias
-  addSectionTitle(" PROYECTOS Y EVIDENCIAS");
-  autoTable(doc, {
-    startY: yPos,
-    head: [["Proyecto", "Programa", "Total Evid.", "Aprobadas", "Pendientes", "Rechazadas"]],
-    body: evidencias.map(e => [
-      e.proyecto,
-      e.programa,
-      e.total_evidencias,
-      e.evidencias_aprobadas,
-      e.evidencias_pendientes,
-      e.evidencias_rechazadas
-    ]),
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [155, 89, 182], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 249, 250] }
-  });
-  yPos = doc.lastAutoTable.finalY + 10;
+    // 📁 Portafolios
+    addSectionTitle("PORTAFOLIOS");
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Nombre", "Carrera", "Programas", "Proyectos"]],
+      body: portafolios.map(p => [
+        p.nombre,
+        p.carrera,
+        programas.filter(pr => pr.nombre_portafolio === p.nombre).length,
+        proyectos.filter(proy => proy.nombre_portafolio === p.nombre).length
+      ]),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [52, 152, 219], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
 
-  if (yPos > 250) {
-    doc.addPage();
-    yPos = 30;
-    addHeader();
-    addFooter();
-  }
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 30;
+      addHeader();
+      addFooter();
+    }
 
-  // 👥 Estudiantes
-  addSectionTitle("ESTUDIANTES");
-  autoTable(doc, {
-    startY: yPos,
-    head: [["Nombre", "Apellido", "Email", "Carrera"]],
-    body: estudiantes.map(e => [
-      e.nombre,
-      e.apellido,
-      e.email,
-      e.carrera
-    ]),
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [230, 126, 34], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 249, 250] }
-  });
+    // 📚 Programas
+    addSectionTitle(" PROGRAMAS");
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Nombre", "Descripción", "Portafolio", "Proyectos"]],
+      body: programas.map(pr => [
+        pr.nombre,
+        pr.descripcion?.substring(0, 40) + "..." || "Sin descripción",
+        pr.nombre_portafolio,
+        proyectos.filter(proy => proy.nombre_programa === pr.nombre).length
+      ]),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [46, 204, 113], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
 
-  // Guardar PDF
-  doc.save(`reporte-integral-${new Date().toLocaleDateString("es-ES")}.pdf`);
-};
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 30;
+      addHeader();
+      addFooter();
+    }
+
+    // 🚀 Proyectos y Evidencias
+    addSectionTitle(" PROYECTOS Y EVIDENCIAS");
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Proyecto", "Programa", "Total Evid.", "Aprobadas", "Pendientes", "Rechazadas"]],
+      body: evidencias.map(e => [
+        e.proyecto,
+        e.programa,
+        e.total_evidencias,
+        e.evidencias_aprobadas,
+        e.evidencias_pendientes,
+        e.evidencias_rechazadas
+      ]),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [155, 89, 182], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
+
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 30;
+      addHeader();
+      addFooter();
+    }
+
+    // 👥 Estudiantes
+    addSectionTitle("ESTUDIANTES");
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Nombre", "Apellido", "Email", "Carrera"]],
+      body: estudiantes.map(e => [
+        e.nombre,
+        e.apellido,
+        e.email,
+        e.carrera
+      ]),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [230, 126, 34], textColor: 255 },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+
+    // Guardar PDF
+    doc.save(`reporte-integral-${new Date().toLocaleDateString("es-ES")}.pdf`);
+  };
 
 
 
@@ -465,14 +436,16 @@ const exportarPDF = () => {
                 </tr>
               </thead>
               <tbody>
-                {portafolios.map((p) => {
+                {portafolios.map((p, idx) => {
                   const programasPortafolio = programas.filter(pr => pr.nombre_portafolio === p.nombre);
-                  const proyectosPortafolio = proyectos.filter(proy => proy.nombre_portafolio === p.nombre);
-                  const evidenciasPortafolio = evidencias.filter(e => e.portafolio === p.nombre);
-                  const totalEvidencias = evidenciasPortafolio.reduce((sum, e) => sum + e.total_evidencias, 0);
+                  const proyectosPortafolio = proyectos.filter(proy => proy.portafolio === p.nombre);
+                  // Suma real de evidencias por todos los proyectos de este portafolio
+                  const totalEvidencias = evidencias
+                    .filter(e => e.portafolio === p.nombre)
+                    .reduce((sum, e) => sum + (e.total_evidencias || 0), 0);
 
                   return (
-                    <tr key={p.id_portafolio}>
+                    <tr key={idx}>
                       <td><strong>{p.nombre}</strong></td>
                       <td><span className="badge">{p.carrera}</span></td>
                       <td><span className="counter">{programasPortafolio.length}</span></td>
@@ -500,18 +473,24 @@ const exportarPDF = () => {
                   <th>Descripción</th>
                   <th>Portafolio</th>
                   <th>Proyectos</th>
+                  <th>Total Evidencias</th>
                 </tr>
               </thead>
               <tbody>
-                {programas.map((pr) => {
-                  const proyectosPrograma = proyectos.filter(proy => proy.nombre_programa === pr.nombre);
-                  
+                {programas.map((pr, idx) => {
+                  const proyectosPrograma = proyectos.filter(proy => proy.programa === pr.nombre);
+                  // Suma real de evidencias por todos los proyectos de este programa
+                  const totalEvidencias = evidencias
+                    .filter(e => e.programa === pr.nombre)
+                    .reduce((sum, e) => sum + (e.total_evidencias || 0), 0);
+
                   return (
-                    <tr key={pr.id_programa}>
+                    <tr key={idx}>
                       <td><strong>{pr.nombre}</strong></td>
                       <td>{pr.descripcion || "Sin descripción"}</td>
                       <td><span className="badge secondary">{pr.nombre_portafolio}</span></td>
                       <td><span className="counter">{proyectosPrograma.length}</span></td>
+                      <td><span className="counter success">{totalEvidencias}</span></td>
                     </tr>
                   );
                 })}
