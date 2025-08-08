@@ -182,6 +182,7 @@ const proyectosService = {
       throw errorHandler(error);
     }
   },
+
   getEvidenciasByProyecto: async (idProyecto) => {
     try {
       const res = await api.get(`/auth/proyectos/${idProyecto}/evidencias`);
@@ -190,10 +191,19 @@ const proyectosService = {
       throw errorHandler(error);
     }
   },
+
   // Obtener estudiantes por carrera (todos)
   getEstudiantesPorCarrera: async () => {
     try {
       const res = await api.get("/reportes/estudiantes");
+      return res.data;
+    } catch (error) {
+      throw errorHandler(error);
+    }
+  },
+  getEstudiantesPortafolioANDPROYECTS: async (id) => {
+    try {
+      const res = await api.get(`/auth/portafolios/${id}/estudiantes`);
       return res.data;
     } catch (error) {
       throw errorHandler(error);

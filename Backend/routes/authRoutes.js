@@ -27,7 +27,9 @@ import {
   getEstudiantesPrograma,
   createProyecto,
   getEstudiantesProyecto,
-  getPortafoliosAsignados
+  getPortafoliosAsignados,
+  getEvidenciasByProyecto,
+  getEstudiantesPortafolioANDPROYECTS
 } from '../controllers/portfolioController.js';
 
 import {
@@ -182,8 +184,10 @@ router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirm
 
 router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
 router.get('/proyectos/:id_proyecto/actividades', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
+router.get('/proyectos/:id_proyecto/evidencias', authenticate, getEvidenciasByProyecto);
 
 router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
 
+router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolioANDPROYECTS);
 
 export default router;

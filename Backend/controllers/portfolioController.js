@@ -459,3 +459,60 @@ export const getPortafoliosAsignados = async (req, res) => {
     res.status(500).json({ error: "Error al obtener portafolios asignados" });
   }
 };
+
+// Funcionn para traer las evidencias de un proyecto
+export const getEvidenciasByProyecto = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         id_evidencia,
+         id_proyecto,
+         id_estudiante,
+         titulo,
+         descripcion,
+         tipo_archivo,
+         nombre_archivo,
+         ruta_archivo,
+         url_externa,
+         tamaño_archivo,
+         categoria_evidencia,
+         estado_validacion,
+         es_entrega_final,
+         fecha_limite,
+         activo,
+         fecha_subida,
+         fecha_actualizacion
+       FROM evidencias_portafolio
+       WHERE id_proyecto = ?`,
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener evidencias del proyecto" });
+  }
+};
+
+export const getEstudiantesPortafolioANDPROYECTS = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT DISTINCT
+        e.id_estudiante,
+        u.nombre,
+        u.apellido,
+        u.email,
+        u.carrera
+      FROM portafolios p
+      JOIN programas pr ON pr.id_portafolio = p.id_portafolio
+      JOIN proyectos proy ON proy.id_programa = pr.id_programa
+      JOIN proyecto_estudiante e ON e.id_proyecto = proy.id_proyecto
+      JOIN usuarios u ON u.id_usuario = e.id_estudiante
+      WHERE p.id_portafolio = ?`,
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener estudiantes del portafolio" });
+  }
+};
