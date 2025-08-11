@@ -20,9 +20,9 @@ import {
 } from 'react-icons/ai';
 import api from '../api/api';
 
-const KanbanBoard = ({ 
-  projectId, 
-  userRole = 'estudiante', 
+const KanbanBoard = ({
+  projectId,
+  userRole = 'estudiante',
   apiEndpoint = null // Nueva prop para endpoint personalizado
 }) => {
   const [activities, setActivities] = useState([]);
@@ -78,6 +78,7 @@ const KanbanBoard = ({
         fetchProjectMembers();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, userRole]);
 
   // MODIFICADO: Usar endpoint personalizado si existe
@@ -138,7 +139,7 @@ const KanbanBoard = ({
     const formData = new FormData();
     formData.append('titulo', newEvidence.titulo);
     formData.append('descripcion', newEvidence.descripcion);
-    
+
     if (newEvidence.archivo) {
       formData.append('archivo', newEvidence.archivo);
     } else if (newEvidence.url_externa) {
@@ -183,7 +184,7 @@ const KanbanBoard = ({
       const response = await api.get(`/auth/activities/evidence/${evidenceId}/download`, {
         responseType: 'blob'
       });
-      
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -193,6 +194,50 @@ const KanbanBoard = ({
       link.remove();
     } catch (error) {
       setError("Error al descargar archivo");
+    }
+  };
+
+  // FUNCIÓN MODIFICADA con logs para debug
+  const handleChangeEvidenceStatus = async (evidenceId, nuevoEstado) => {
+    try {
+      console.log('🔍 Cambiando estado a:', nuevoEstado);
+      console.log('🔍 ID de evidencia:', evidenceId);
+
+      let comentarios = '';
+
+      if (nuevoEstado === 'rechazado') {
+        comentarios = prompt('Ingresa comentarios sobre el rechazo:');
+        if (!comentarios) {
+          setError("Los comentarios son obligatorios para rechazar");
+          return;
+        }
+      } else if (nuevoEstado === 'revision') {
+        comentarios = prompt('Ingresa comentarios para revisión (opcional):') || 'En revisión';
+      } else if (nuevoEstado === 'aprobado') {
+        comentarios = 'Evidencia aprobada';
+      } else if (nuevoEstado === 'pendiente') {
+        comentarios = 'Regresado a pendiente';
+      }
+
+      console.log('🔍 Comentarios:', comentarios);
+
+      const response = await api.put(`/auth/activities/evidence/${evidenceId}/review`, {
+        estado_revision: nuevoEstado,
+        comentarios_revision: comentarios
+      });
+
+      console.log('🔍 Respuesta del servidor:', response.data);
+
+      setSuccess(`Evidencia marcada como ${nuevoEstado} correctamente`);
+
+      // Recargar evidencias para mostrar el nuevo estado
+      if (selectedActivity) {
+        handleViewEvidences(selectedActivity);
+      }
+    } catch (error) {
+      console.error('❌ Error completo:', error);
+      console.error('❌ Respuesta del error:', error.response?.data);
+      setError("Error al cambiar estado de evidencia: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -231,11 +276,6 @@ const KanbanBoard = ({
     return new Date(dateString) < new Date();
   };
 
-  const getActivityColorByState = (estado) => {
-    const estadoObj = estados.find(e => e.key === estado);
-    return estadoObj ? estadoObj.color : '#6b7280';
-  };
-
   // MODIFICADO: Permisos mejorados según el rol
   const canEditActivity = (activity) => {
     if (userRole === 'coordinador') return true; // Coordinadores pueden editar todo
@@ -250,6 +290,14 @@ const KanbanBoard = ({
   const canUploadEvidence = (activity) => {
     if (userRole === 'coordinador') return false; // Coordinadores no suben evidencias
     return activity.puede_subir_evidencia;
+  };
+
+
+
+  // Verificar si puede aprobar evidencias
+  const canApproveEvidence = () => {
+    console.log('🔍 User role actual:', userRole);
+    return userRole === 'coordinador';
   };
 
   const canApproveActivities = () => {
@@ -284,14 +332,14 @@ const KanbanBoard = ({
             {userRole === 'coordinador' && <span className="coordinator-badge">👑 Vista Coordinador</span>}
           </h2>
           <p>
-            {userRole === 'coordinador' 
+            {userRole === 'coordinador'
               ? 'Supervisión y gestión de actividades del proyecto'
               : 'Gestiona las tareas y actividades del proyecto'
             }
           </p>
         </div>
         {canCreateActivities() && (
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => setShowCreateModal(true)}
           >
@@ -347,7 +395,7 @@ const KanbanBoard = ({
                 {groupedActivities[estado.key]?.length || 0}
               </span>
             </div>
-            
+
             <div className="column-content">
               {groupedActivities[estado.key]?.map((activity) => (
                 <div key={activity.id_actividad} className="activity-card" data-priority={activity.prioridad}>
@@ -357,11 +405,11 @@ const KanbanBoard = ({
                       {prioridades[activity.prioridad]?.icon}
                     </div>
                   </div>
-                  
+
                   {activity.descripcion && (
                     <p className="activity-description">{activity.descripcion}</p>
                   )}
-                  
+
                   <div className="activity-meta">
                     {activity.fecha_limite && (
                       <div className={`meta-item ${isOverdue(activity.fecha_limite) ? 'overdue' : ''}`}>
@@ -370,13 +418,13 @@ const KanbanBoard = ({
                         {isOverdue(activity.fecha_limite) && <AiOutlineWarning style={{ color: '#ef4444' }} />}
                       </div>
                     )}
-                    
+
                     {activity.asignados && activity.asignados.length > 0 && (
                       <div className="meta-item">
                         <AiOutlineUser />
                         <span title={activity.asignados.join(', ')}>
-                          {activity.asignados.length > 1 
-                            ? `${activity.asignados[0]} +${activity.asignados.length - 1}` 
+                          {activity.asignados.length > 1
+                            ? `${activity.asignados[0]} +${activity.asignados.length - 1}`
                             : activity.asignados[0]
                           }
                         </span>
@@ -391,7 +439,7 @@ const KanbanBoard = ({
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="activity-stats">
                     {activity.total_evidencias > 0 && (
                       <span className="stat-badge evidences" title="Evidencias">
@@ -404,12 +452,12 @@ const KanbanBoard = ({
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="activity-actions">
                     <div className="action-buttons">
                       {/* NUEVO: Botón de detalle para coordinadores */}
                       {userRole === 'coordinador' && (
-                        <button 
+                        <button
                           className="btn-icon btn-info"
                           onClick={() => handleViewActivityDetail(activity)}
                           title="Ver detalles completos"
@@ -419,7 +467,7 @@ const KanbanBoard = ({
                       )}
 
                       {canUploadEvidence(activity) && (
-                        <button 
+                        <button
                           className="btn-icon btn-primary"
                           onClick={() => {
                             setSelectedActivity(activity);
@@ -430,9 +478,9 @@ const KanbanBoard = ({
                           <AiOutlineUpload />
                         </button>
                       )}
-                      
+
                       {activity.total_evidencias > 0 && (
-                        <button 
+                        <button
                           className="btn-icon btn-secondary"
                           onClick={() => handleViewEvidences(activity)}
                           title="Ver evidencias"
@@ -441,11 +489,11 @@ const KanbanBoard = ({
                         </button>
                       )}
                     </div>
-                    
+
                     {canEditActivity(activity) && activity.estado !== 'completado' && (
                       <div className="status-controls">
                         {activity.estado === 'pendiente' && (
-                          <button 
+                          <button
                             className="btn-icon btn-info"
                             onClick={() => handleStatusChange(activity.id_actividad, 'en_progreso')}
                             title="Iniciar"
@@ -453,9 +501,9 @@ const KanbanBoard = ({
                             <AiOutlineFlag />
                           </button>
                         )}
-                        
+
                         {activity.estado === 'en_progreso' && (
-                          <button 
+                          <button
                             className="btn-icon btn-warning"
                             onClick={() => handleStatusChange(activity.id_actividad, 'revision')}
                             title="Enviar a revisión"
@@ -463,17 +511,17 @@ const KanbanBoard = ({
                             <AiOutlineEye />
                           </button>
                         )}
-                        
+
                         {(activity.estado === 'revision' && canApproveActivities()) && (
                           <>
-                            <button 
+                            <button
                               className="btn-icon btn-success"
                               onClick={() => handleStatusChange(activity.id_actividad, 'completado')}
                               title="Aprobar"
                             >
                               <AiOutlineCheck />
                             </button>
-                            <button 
+                            <button
                               className="btn-icon btn-danger"
                               onClick={() => handleStatusChange(activity.id_actividad, 'en_progreso', 'Requiere correcciones')}
                               title="Rechazar"
@@ -485,7 +533,7 @@ const KanbanBoard = ({
                       </div>
                     )}
                   </div>
-                  
+
                   {activity.estado === 'completado' && (
                     <div className="completion-badge">
                       <AiOutlineCheck /> Completado
@@ -493,7 +541,7 @@ const KanbanBoard = ({
                   )}
                 </div>
               ))}
-              
+
               {groupedActivities[estado.key]?.length === 0 && (
                 <div className="empty-column">
                   <p>No hay actividades en {estado.label.toLowerCase()}</p>
@@ -510,14 +558,14 @@ const KanbanBoard = ({
           <div className="modal modal-large">
             <div className="modal-header">
               <h3>Detalles de Actividad - {selectedActivity.titulo}</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowActivityDetailModal(false)}
               >
                 ×
               </button>
             </div>
-            
+
             <div className="modal-body">
               <div className="activity-detail-content">
                 <div className="detail-section">
@@ -600,10 +648,10 @@ const KanbanBoard = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="modal-actions">
                 {selectedActivity.total_evidencias > 0 && (
-                  <button 
+                  <button
                     className="btn btn-secondary"
                     onClick={() => {
                       setShowActivityDetailModal(false);
@@ -613,7 +661,7 @@ const KanbanBoard = ({
                     Ver Evidencias
                   </button>
                 )}
-                <button 
+                <button
                   className="btn btn-primary"
                   onClick={() => setShowActivityDetailModal(false)}
                 >
@@ -631,14 +679,14 @@ const KanbanBoard = ({
           <div className="modal modal-large">
             <div className="modal-header">
               <h3>Nueva Actividad</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowCreateModal(false)}
               >
                 ×
               </button>
             </div>
-            
+
             <form onSubmit={handleCreateActivity} className="modal-body">
               <div className="form-grid">
                 <div className="form-group">
@@ -647,17 +695,17 @@ const KanbanBoard = ({
                     type="text"
                     className="form-input"
                     value={newActivity.titulo}
-                    onChange={(e) => setNewActivity({...newActivity, titulo: e.target.value})}
+                    onChange={(e) => setNewActivity({ ...newActivity, titulo: e.target.value })}
                     required
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Prioridad</label>
                   <select
                     className="form-select"
                     value={newActivity.prioridad}
-                    onChange={(e) => setNewActivity({...newActivity, prioridad: e.target.value})}
+                    onChange={(e) => setNewActivity({ ...newActivity, prioridad: e.target.value })}
                   >
                     <option value="baja">Baja</option>
                     <option value="media">Media</option>
@@ -665,37 +713,37 @@ const KanbanBoard = ({
                     <option value="critica">Crítica</option>
                   </select>
                 </div>
-                
+
                 <div className="form-group form-group-full">
                   <label className="form-label">Descripción</label>
                   <textarea
                     className="form-textarea"
                     value={newActivity.descripcion}
-                    onChange={(e) => setNewActivity({...newActivity, descripcion: e.target.value})}
+                    onChange={(e) => setNewActivity({ ...newActivity, descripcion: e.target.value })}
                     rows="3"
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Fecha de inicio</label>
                   <input
                     type="date"
                     className="form-input"
                     value={newActivity.fecha_inicio}
-                    onChange={(e) => setNewActivity({...newActivity, fecha_inicio: e.target.value})}
+                    onChange={(e) => setNewActivity({ ...newActivity, fecha_inicio: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label className="form-label">Fecha límite</label>
                   <input
                     type="date"
                     className="form-input"
                     value={newActivity.fecha_limite}
-                    onChange={(e) => setNewActivity({...newActivity, fecha_limite: e.target.value})}
+                    onChange={(e) => setNewActivity({ ...newActivity, fecha_limite: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="form-group form-group-full">
                   <label className="form-label">Asignar a</label>
                   <select
@@ -704,7 +752,7 @@ const KanbanBoard = ({
                     value={newActivity.asignados}
                     onChange={(e) => {
                       const values = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                      setNewActivity({...newActivity, asignados: values});
+                      setNewActivity({ ...newActivity, asignados: values });
                     }}
                   >
                     {projectMembers.map(member => (
@@ -718,10 +766,10 @@ const KanbanBoard = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="modal-actions">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowCreateModal(false)}
                 >
@@ -742,14 +790,14 @@ const KanbanBoard = ({
           <div className="modal modal-large">
             <div className="modal-header">
               <h3>Subir Evidencia - {selectedActivity.titulo}</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowEvidenceModal(false)}
               >
                 ×
               </button>
             </div>
-            
+
             <form onSubmit={handleUploadEvidence} className="modal-body">
               <div className="form-grid">
                 <div className="form-group form-group-full">
@@ -758,49 +806,49 @@ const KanbanBoard = ({
                     type="text"
                     className="form-input"
                     value={newEvidence.titulo}
-                    onChange={(e) => setNewEvidence({...newEvidence, titulo: e.target.value})}
+                    onChange={(e) => setNewEvidence({ ...newEvidence, titulo: e.target.value })}
                     required
                   />
                 </div>
-                
+
                 <div className="form-group form-group-full">
                   <label className="form-label">Descripción</label>
                   <textarea
                     className="form-textarea"
                     value={newEvidence.descripcion}
-                    onChange={(e) => setNewEvidence({...newEvidence, descripcion: e.target.value})}
+                    onChange={(e) => setNewEvidence({ ...newEvidence, descripcion: e.target.value })}
                     rows="3"
                   />
                 </div>
-                
+
                 <div className="form-group form-group-full">
                   <label className="form-label">Archivo</label>
                   <input
                     type="file"
                     className="form-input"
-                    onChange={(e) => setNewEvidence({...newEvidence, archivo: e.target.files[0], url_externa: ''})}
+                    onChange={(e) => setNewEvidence({ ...newEvidence, archivo: e.target.files[0], url_externa: '' })}
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.mp3,.zip,.txt"
                   />
                   <div className="form-help-text">
                     O ingresa una URL externa (GitHub, Drive, etc.)
                   </div>
                 </div>
-                
+
                 <div className="form-group form-group-full">
                   <label className="form-label">URL Externa</label>
                   <input
                     type="url"
                     className="form-input"
                     value={newEvidence.url_externa}
-                    onChange={(e) => setNewEvidence({...newEvidence, url_externa: e.target.value, archivo: null})}
+                    onChange={(e) => setNewEvidence({ ...newEvidence, url_externa: e.target.value, archivo: null })}
                     placeholder="https://..."
                   />
                 </div>
               </div>
-              
+
               <div className="modal-actions">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowEvidenceModal(false)}
                 >
@@ -821,14 +869,14 @@ const KanbanBoard = ({
           <div className="modal modal-large">
             <div className="modal-header">
               <h3>Evidencias - {selectedActivity.titulo}</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setShowEvidenceListModal(false)}
               >
                 ×
               </button>
             </div>
-            
+
             <div className="modal-body">
               {evidences.length === 0 ? (
                 <div className="empty-state">
@@ -847,14 +895,25 @@ const KanbanBoard = ({
                           {evidence.estado_revision}
                         </div>
                       </div>
-                      
+
                       {evidence.descripcion && (
                         <p className="evidence-description">{evidence.descripcion}</p>
                       )}
-                      
+                      {/* NUEVO: Mostrar comentarios de rechazo */}
+                      {evidence.estado_revision === 'rechazado' && evidence.comentarios_revision && (
+                        <div className="evidence-rejection">
+                          <strong>Rechazado por:</strong>
+                          <p className="rejection-comments">{evidence.comentarios_revision}</p>
+                          {evidence.revisor_nombre && (
+                            <small>- {evidence.revisor_nombre} {evidence.revisor_apellido}</small>
+                          )}
+                        </div>
+                      )}
+
+
                       <div className="evidence-actions">
                         {evidence.tipo_archivo !== 'link' && (
-                          <button 
+                          <button
                             className="btn-icon"
                             onClick={() => handleDownloadEvidence(evidence.id_evidencia, evidence.nombre_archivo)}
                             title="Descargar"
@@ -862,9 +921,9 @@ const KanbanBoard = ({
                             <AiOutlineDownload />
                           </button>
                         )}
-                        
+
                         {evidence.tipo_archivo === 'link' && (
-                          <a 
+                          <a
                             href={evidence.url_externa}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -874,15 +933,33 @@ const KanbanBoard = ({
                             <AiOutlineLink />
                           </a>
                         )}
+
+                        {canApproveEvidence() && (
+                          <div className="evidence-status-selector">
+                            <label className="status-label">Estado:</label>
+                            <select
+                              className="status-select"
+                              value={evidence.estado_revision || 'pendiente'}
+                              onChange={(e) => handleChangeEvidenceStatus(evidence.id_evidencia, e.target.value)}
+                            >
+                              <option value="pendiente">Pendiente</option>
+                              <option value="revision">En Revisión</option>
+                              <option value="aprobado">Aprobado</option>
+                              <option value="rechazado">Rechazado</option>
+                            </select>
+
+                          </div>
+
+                        )}
                       </div>
-                      
+
                       <div className="evidence-meta">
                         <small>Subido: {formatDate(evidence.fecha_subida)}</small>
                         {evidence.fecha_revision && (
                           <small>Revisado: {formatDate(evidence.fecha_revision)}</small>
                         )}
                       </div>
-                      
+
                       {evidence.comentarios_revision && (
                         <div className="evidence-comments">
                           <strong>Comentarios del revisor:</strong>

@@ -1743,3 +1743,101 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Selector de estado de evidencia */
+.evidence-status-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+  min-width: 120px;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.status-select:hover {
+  border-color: var(--accent);
+}
+
+.status-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+/* Mejorar los colores de los estados */
+.evidence-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  display: inline-block;
+}
+
+.evidence-status.pendiente {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.evidence-status.revision {
+  background-color: #e0e7ff;
+  color: #6366f1;
+}
+
+.evidence-status.aprobado {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.evidence-status.rechazado {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+/* Estilos para comentarios de rechazo */
+.evidence-rejection {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+.evidence-rejection strong {
+  color: #dc2626;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.rejection-comments {
+  color: #7f1d1d;
+  font-style: italic;
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.evidence-rejection small {
+  color: #991b1b;
+  display: block;
+  text-align: right;
+  margin-top: 6px;
+}
