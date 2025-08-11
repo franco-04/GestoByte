@@ -66,12 +66,11 @@ export default function AdminDashboard() {
         // 5. 🔥 NUEVO: Coordinadores (solo para superadmin)
         let totalCoordinadores = 0;
         try {
-          const coordinadoresResponse = await axios.get('/api/auth/coordinators', {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`
-            }
-          });
-          totalCoordinadores = coordinadoresResponse.data.coordinators?.length || 0;
+          const coordinadores = await proyectosService.getProfesores();
+
+          totalCoordinadores = Array.isArray(coordinadores)
+            ? coordinadores.length
+            : 0;
         } catch (e) {
           // Si no tiene permisos, se mantiene en 0
         }
@@ -168,7 +167,7 @@ export default function AdminDashboard() {
                 data={{
                   labels: [
                     "Portafolios",
-                    "Coordinadores", 
+                    "Coordinadores",
                     "Programas",
                     "Estudiantes",
                     "Reuniones",
@@ -177,10 +176,16 @@ export default function AdminDashboard() {
                     {
                       label: "Totales",
                       data: [
-                        stats.totalPortafolios === "-" ? 0 : stats.totalPortafolios,
-                        stats.totalCoordinadores === "-" ? 0 : stats.totalCoordinadores,
+                        stats.totalPortafolios === "-"
+                          ? 0
+                          : stats.totalPortafolios,
+                        stats.totalCoordinadores === "-"
+                          ? 0
+                          : stats.totalCoordinadores,
                         stats.totalProgramas === "-" ? 0 : stats.totalProgramas,
-                        stats.totalEstudiantes === "-" ? 0 : stats.totalEstudiantes,
+                        stats.totalEstudiantes === "-"
+                          ? 0
+                          : stats.totalEstudiantes,
                         stats.totalReuniones === "-" ? 0 : stats.totalReuniones,
                       ],
                       backgroundColor: [
@@ -198,9 +203,9 @@ export default function AdminDashboard() {
                   plugins: { legend: { display: false } },
                   scales: {
                     y: {
-                      beginAtZero: true
-                    }
-                  }
+                      beginAtZero: true,
+                    },
+                  },
                 }}
               />
             </div>
@@ -209,30 +214,30 @@ export default function AdminDashboard() {
             <div className="welcome-message">
               <h3>¡Bienvenido al Panel de Superadministrador!</h3>
               <p>
-                Como superadministrador, tienes acceso completo al sistema. 
-                Puedes gestionar coordinadores, crear portafolios, administrar 
+                Como superadministrador, tienes acceso completo al sistema.
+                Puedes gestionar coordinadores, crear portafolios, administrar
                 programas y supervisar todos los proyectos.
               </p>
               <div className="quick-actions">
-                <button 
+                <button
                   className="action-btn primary"
                   onClick={() => setVista("coordinadores")}
                 >
                   👨‍🏫 Gestionar Coordinadores
                 </button>
-                <button 
+                <button
                   className="action-btn success"
                   onClick={() => setVista("portafolios")}
                 >
                   📚 Gestionar Portafolios
                 </button>
-                <button 
+                <button
                   className="action-btn info"
                   onClick={() => setVista("programas")}
                 >
                   🏫 Gestionar Programas
                 </button>
-                <button 
+                <button
                   className="action-btn warning"
                   onClick={() => setVista("reuniones")}
                 >
@@ -240,9 +245,8 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
-            
-            <div className="dashboard-grid">
-            </div>
+
+            <div className="dashboard-grid"></div>
           </div>
         )}
 
