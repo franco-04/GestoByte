@@ -371,18 +371,35 @@ const downloadActivityEvidence = async (id_evidencia) => {
 
   const downloadSignedDocument = async (id_evidencia) => {
     try {
+      console.log('🔽 Descargando documento firmado:', id_evidencia);
+      
       const response = await api.get(`/auth/activities/evidence/${id_evidencia}/download-signed`, {
         responseType: 'blob'
       });
-
+  
+      // Extraer el nombre del archivo del header Content-Disposition
+      let fileName = 'documento_firmado.pdf'; // fallback
+      const contentDisposition = response.headers['content-disposition'];
+      
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="([^"]+)"/);
+        if (matches && matches[1]) {
+          fileName = matches[1];
+        }
+      }
+  
+      console.log('📄 Descargando documento firmado como:', fileName);
+  
+      // Crear blob y descargar con el nombre correcto
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'documento_firmado.pdf');
+      link.setAttribute('download', fileName); // Usar el nombre del servidor
       document.body.appendChild(link);
       link.click();
       link.remove();
-
+      window.URL.revokeObjectURL(url);
+  
     } catch (error) {
       console.error('Error al descargar documento firmado:', error);
       setError('Error al descargar el documento firmado');

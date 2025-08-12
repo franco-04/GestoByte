@@ -487,9 +487,11 @@ export const downloadEvidence = async (req, res) => {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // MODIFICADO: Verificar acceso para estudiantes
+    console.log('🔽 Descarga solicitada - ID:', id_evidencia);
+
+    // Obtener datos de evidencia (código existente de verificación de acceso)
     const [accessStudent] = await pool.query(
-      `SELECT ea.ruta_archivo, ea.nombre_archivo
+      `SELECT ea.ruta_archivo, ea.nombre_archivo, ea.tipo_archivo
        FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
        INNER JOIN proyecto_estudiantes pe ON ap.id_proyecto = pe.id_proyecto
@@ -497,9 +499,8 @@ export const downloadEvidence = async (req, res) => {
       [id_evidencia, id_usuario]
     );
 
-    // NUEVO: Verificar acceso para coordinadores
     const [accessCoordinator] = await pool.query(
-      `SELECT ea.ruta_archivo, ea.nombre_archivo
+      `SELECT ea.ruta_archivo, ea.nombre_archivo, ea.tipo_archivo
        FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
        INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
@@ -509,7 +510,6 @@ export const downloadEvidence = async (req, res) => {
       [id_evidencia, id_usuario]
     );
 
-    // Tomar el resultado que tenga datos
     const evidencia = accessStudent.length > 0 ? accessStudent[0] : 
                      accessCoordinator.length > 0 ? accessCoordinator[0] : null;
 
@@ -517,21 +517,141 @@ export const downloadEvidence = async (req, res) => {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { ruta_archivo, nombre_archivo } = evidencia;
+    const { ruta_archivo, nombre_archivo, tipo_archivo } = evidencia;
+
+    console.log('📄 Ruta original en BD:', ruta_archivo);
 
     if (!ruta_archivo) {
       return res.status(400).json({ error: "Esta evidencia es un link externo" });
     }
 
-    try {
-      await fs.access(ruta_archivo);
-      res.download(ruta_archivo, nombre_archivo);
-    } catch {
-      return res.status(404).json({ error: "Archivo no encontrado" });
+    // NUEVO: Extraer solo el nombre del archivo para buscar en el directorio actual
+    const fileName = nombre_archivo || `evidencia.${tipo_archivo || 'pdf'}`;
+    const fileBaseName = path.basename(ruta_archivo);
+    
+    console.log('📁 Buscando archivo:', fileBaseName);
+
+    // Rutas posibles donde puede estar el archivo
+    const possiblePaths = [
+      // 1. Ruta original (para archivos nuevos)
+      ruta_archivo,
+      
+      // 2. Solo el nombre del archivo en el directorio actual de evidencias
+      path.join(process.cwd(), 'uploads', 'evidencias-actividades', fileBaseName),
+      
+      // 3. Variaciones del directorio
+      path.join(__dirname, '../uploads/evidencias-actividades', fileBaseName),
+      path.join(process.cwd(), 'uploads', fileBaseName),
+      
+      // 4. Para casos donde el archivo tenga solo el nombre sin extensión, buscar por nombre original
+      path.join(process.cwd(), 'uploads', 'evidencias-actividades', fileName)
+    ];
+
+    let foundPath = null;
+    let foundStats = null;
+
+    // Buscar el archivo en todas las rutas posibles
+    for (const testPath of possiblePaths) {
+      try {
+        await fs.access(testPath);
+        const stats = await fs.stat(testPath);
+        foundPath = testPath;
+        foundStats = stats;
+        console.log('✅ Archivo encontrado en:', foundPath, `(${stats.size} bytes)`);
+        break;
+      } catch (error) {
+        console.log('❌ No encontrado en:', testPath);
+      }
     }
 
+    // Si no se encuentra, buscar cualquier archivo que contenga parte del nombre
+    if (!foundPath) {
+      console.log('🔍 Buscando por patrón de nombre...');
+      
+      try {
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'evidencias-actividades');
+        const files = await fs.readdir(uploadsDir);
+        
+        // Buscar archivos que contengan el ID de evidencia o parte del nombre
+        const possibleFiles = files.filter(file => {
+          return file.includes(id_evidencia) || 
+                 file.includes(path.parse(fileName).name) ||
+                 fileName.includes(path.parse(file).name);
+        });
+        
+        console.log('📋 Archivos candidatos:', possibleFiles);
+        
+        if (possibleFiles.length > 0) {
+          // Tomar el primer archivo encontrado
+          foundPath = path.join(uploadsDir, possibleFiles[0]);
+          const stats = await fs.stat(foundPath);
+          foundStats = stats;
+          console.log('✅ Archivo encontrado por patrón:', foundPath);
+        }
+        
+      } catch (error) {
+        console.log('❌ Error buscando por patrón:', error.message);
+      }
+    }
+
+    if (!foundPath) {
+      console.error('❌ Archivo no encontrado en ninguna ubicación');
+      return res.status(404).json({ 
+        error: "Archivo no encontrado en el servidor",
+        debug: {
+          rutaOriginal: ruta_archivo,
+          nombreArchivo: fileName,
+          rutasBuscadas: possiblePaths
+        }
+      });
+    }
+
+    // Configurar descarga con el tipo correcto
+    const mimeTypes = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'mp4': 'video/mp4',
+      'mp3': 'audio/mpeg',
+      'zip': 'application/zip',
+      'txt': 'text/plain'
+    };
+    
+    const mimeType = mimeTypes[tipo_archivo?.toLowerCase()] || 'application/octet-stream';
+    
+    console.log('📂 Configurando descarga:', {
+      fileName,
+      mimeType,
+      foundPath,
+      size: foundStats?.size
+    });
+    
+    // Configurar headers
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Content-Length', foundStats.size);
+    
+    // Enviar archivo
+    res.sendFile(foundPath, (err) => {
+      if (err) {
+        console.error('❌ Error al enviar archivo:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Error al enviar archivo" });
+        }
+      } else {
+        console.log('✅ Archivo enviado correctamente:', fileName);
+      }
+    });
+
   } catch (error) {
-    console.error('Error al descargar evidencia:', error);
+    console.error('❌ Error general al descargar:', error);
     res.status(500).json({ error: "Error al descargar evidencia" });
   }
 };
@@ -743,18 +863,20 @@ export const uploadSignedEvidenceByCoordinator = async (req, res) => {
       await connection.beginTransaction();
       
       // Actualizar evidencia con documento firmado y aprobación
-      await connection.query(
+      await pool.query(
         `UPDATE evidencias_actividad 
          SET estado_revision = 'aprobado', 
              comentarios_revision = ?, 
              id_revisor = ?, 
              fecha_revision = NOW(),
-             archivo_firmado_ruta = ?
+             archivo_firmado_ruta = ?,
+             nombre_archivo_firmado = ?
          WHERE id_evidencia = ?`,
         [
           comentarios_aprobacion || 'Evidencia aprobada con documento firmado', 
           id_coordinador, 
-          archivo.path, 
+          archivo.path,
+          archivo.originalname, // ← Este es el nombre original del archivo firmado
           id_evidencia
         ]
       );
@@ -855,9 +977,10 @@ export const downloadSignedDocument = async (req, res) => {
     const { id_evidencia } = req.params;
     const id_usuario = req.user.id;
 
-    // Verificar acceso y obtener ruta del archivo firmado
+    // Verificar acceso y obtener datos del archivo firmado
     const [evidencia] = await pool.query(
-      `SELECT ea.archivo_firmado_ruta, ea.nombre_archivo, ea.id_usuario as id_estudiante, port.id_coordinador
+      `SELECT ea.archivo_firmado_ruta, ea.nombre_archivo_firmado, ea.nombre_archivo, 
+              ea.id_usuario as id_estudiante, port.id_coordinador
        FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
        INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
@@ -871,7 +994,7 @@ export const downloadSignedDocument = async (req, res) => {
       return res.status(404).json({ error: "Evidencia no encontrada" });
     }
 
-    const { archivo_firmado_ruta, nombre_archivo, id_estudiante, id_coordinador } = evidencia[0];
+    const { archivo_firmado_ruta, nombre_archivo_firmado, nombre_archivo, id_estudiante, id_coordinador } = evidencia[0];
     const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
 
     if (!hasAccess) {
@@ -879,16 +1002,55 @@ export const downloadSignedDocument = async (req, res) => {
     }
 
     if (!archivo_firmado_ruta) {
-      return res.status(404).json({ error: "No hay archivo firmado disponible" });
+      return res.status(404).json({ error: "No hay archivo firmado disponible para esta evidencia" });
     }
 
-    // Descargar archivo firmado
+    // Verificar que el archivo existe
     try {
       await fs.access(archivo_firmado_ruta);
-      const nombreFirmado = `FIRMADO_${nombre_archivo}`;
-      res.download(archivo_firmado_ruta, nombreFirmado);
-    } catch {
-      return res.status(404).json({ error: "Archivo firmado no encontrado en el servidor" });
+      
+      // Usar el nombre del archivo firmado o crear uno basado en el original
+      const fileName = nombre_archivo_firmado || `FIRMADO_${nombre_archivo}`;
+      
+      console.log('✅ Descargando archivo firmado:', {
+        archivo_firmado_ruta,
+        fileName,
+        originalName: nombre_archivo_firmado
+      });
+      
+      // Configurar headers para preservar el nombre
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      
+      // Detectar tipo MIME
+      const extension = path.extname(fileName).slice(1).toLowerCase();
+      const mimeTypes = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png'
+      };
+      
+      const mimeType = mimeTypes[extension] || 'application/octet-stream';
+      res.setHeader('Content-Type', mimeType);
+      
+      res.sendFile(archivo_firmado_ruta, (err) => {
+        if (err) {
+          console.error('❌ Error al enviar archivo:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Error al enviar archivo" });
+          }
+        } else {
+          console.log('✅ Archivo firmado enviado correctamente:', fileName);
+        }
+      });
+      
+    } catch (fileError) {
+      console.error('❌ Archivo firmado no encontrado:', archivo_firmado_ruta);
+      return res.status(404).json({ error: "El archivo firmado no se encuentra en el servidor" });
     }
 
   } catch (error) {
