@@ -420,6 +420,8 @@ export const getActivityEvidences = async (req, res) => {
         ea.tamaño_archivo,
         ea.estado_revision,
         ea.comentarios_revision,
+          ea.numero_devoluciones, 
+  ea.archivo_firmado_ruta, 
         ea.fecha_subida,
         ea.fecha_revision,
         u.nombre as usuario_nombre,
@@ -538,12 +540,13 @@ export const downloadEvidence = async (req, res) => {
 export const reviewEvidence = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
-    const { estado_revision, comentarios_revision } = req.body;
+    const { estado_revision, comentarios_revision, motivo_devolucion, firma_digital } = req.body;
     const id_coordinador = req.user.id;
 
     // Verificar que el coordinador tenga acceso
     const [access] = await pool.query(
-      `SELECT ea.id_evidencia FROM evidencias_actividad ea
+      `SELECT ea.id_evidencia, ea.estado_revision, ea.numero_devoluciones, ea.id_usuario as id_estudiante
+       FROM evidencias_actividad ea
        INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
        INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
        INNER JOIN programas prog ON p.id_programa = prog.id_programa
@@ -556,17 +559,581 @@ export const reviewEvidence = async (req, res) => {
       return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
     }
 
-    // Actualizar la evidencia
-    await pool.query(
-      `UPDATE evidencias_actividad 
-       SET estado_revision = ?, comentarios_revision = ?, id_revisor = ?, fecha_revision = NOW()
-       WHERE id_evidencia = ?`,
-      [estado_revision, comentarios_revision, id_coordinador, id_evidencia]
-    );
+    const evidencia = access[0];
+    const estado_anterior = evidencia.estado_revision;
+    let numero_devoluciones = evidencia.numero_devoluciones;
 
-    res.json({ success: true, message: "Evidencia revisada correctamente" });
+    // Iniciar transacción
+    await pool.query('START TRANSACTION');
+
+    try {
+      // Si es una devolución, incrementar contador
+      if (estado_revision === 'devuelto') {
+        numero_devoluciones += 1;
+        
+        // Registrar en historial de devoluciones
+        await pool.query(
+          `INSERT INTO historial_devoluciones_evidencia 
+           (id_evidencia, numero_devolucion, motivo_devolucion, comentarios_adicionales, id_coordinador, estado_anterior)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [id_evidencia, numero_devoluciones, motivo_devolucion, comentarios_revision, id_coordinador, estado_anterior]
+        );
+
+        // Actualizar evidencia con contadores de devolución
+        await pool.query(
+          `UPDATE evidencias_actividad 
+           SET estado_revision = ?, comentarios_revision = ?, id_revisor = ?, fecha_revision = NOW(),
+               numero_devoluciones = ?, 
+               fecha_ultima_devolucion = NOW(),
+               fecha_primera_devolucion = CASE 
+                 WHEN fecha_primera_devolucion IS NULL THEN NOW() 
+                 ELSE fecha_primera_devolucion 
+               END
+           WHERE id_evidencia = ?`,
+          [estado_revision, comentarios_revision, id_coordinador, numero_devoluciones, id_evidencia]
+        );
+
+        // Crear notificación de devolución
+        await pool.query(
+          `INSERT INTO notificaciones_devoluciones 
+           (id_evidencia, id_estudiante, id_coordinador, tipo_notificacion, titulo, mensaje, numero_devolucion)
+           VALUES (?, ?, ?, 'devolucion', ?, ?, ?)`,
+          [
+            id_evidencia, 
+            evidencia.id_estudiante, 
+            id_coordinador,
+            `Evidencia devuelta (Intento #${numero_devoluciones})`,
+            `Tu evidencia ha sido devuelta por ${numero_devoluciones}ª vez. Motivo: ${motivo_devolucion}`,
+            numero_devoluciones
+          ]
+        );
+
+      } else if (estado_revision === 'aprobado') {
+        // Si se aprueba con firma digital en línea
+        if (firma_digital) {
+          await pool.query(
+            `INSERT INTO firmas_digitales 
+             (id_evidencia, tipo_documento, hash_documento, firma_coordinador, coordenadas_firma, id_coordinador, ruta_documento_firmado, metadatos_firma)
+             VALUES (?, 'documento_aprobacion', ?, ?, ?, ?, ?, ?)`,
+            [
+              id_evidencia,
+              firma_digital.hash_documento,
+              firma_digital.firma_base64,
+              JSON.stringify(firma_digital.coordenadas),
+              id_coordinador,
+              firma_digital.ruta_documento || '',
+              JSON.stringify(firma_digital.metadatos || {})
+            ]
+          );
+        }
+
+        // Actualizar evidencia como aprobada
+        await pool.query(
+          `UPDATE evidencias_actividad 
+           SET estado_revision = ?, comentarios_revision = ?, id_revisor = ?, fecha_revision = NOW()
+           WHERE id_evidencia = ?`,
+          [estado_revision, comentarios_revision, id_coordinador, id_evidencia]
+        );
+
+        // Crear notificación de aprobación
+        await pool.query(
+          `INSERT INTO notificaciones_devoluciones 
+           (id_evidencia, id_estudiante, id_coordinador, tipo_notificacion, titulo, mensaje)
+           VALUES (?, ?, ?, 'aprobacion', ?, ?)`,
+          [
+            id_evidencia, 
+            evidencia.id_estudiante, 
+            id_coordinador,
+            'Evidencia Aprobada ✅',
+            firma_digital ? 
+              'Tu evidencia ha sido aprobada con firma digital del coordinador.' :
+              'Tu evidencia ha sido aprobada por el coordinador.'
+          ]
+        );
+
+      } else if (estado_revision === 'rechazado_final') {
+        // Rechazo definitivo
+        await pool.query(
+          `UPDATE evidencias_actividad 
+           SET estado_revision = ?, comentarios_revision = ?, id_revisor = ?, fecha_revision = NOW()
+           WHERE id_evidencia = ?`,
+          [estado_revision, comentarios_revision, id_coordinador, id_evidencia]
+        );
+
+        // Crear notificación de rechazo final
+        await pool.query(
+          `INSERT INTO notificaciones_devoluciones 
+           (id_evidencia, id_estudiante, id_coordinador, tipo_notificacion, titulo, mensaje)
+           VALUES (?, ?, ?, 'rechazo_final', ?, ?)`,
+          [
+            id_evidencia, 
+            evidencia.id_estudiante, 
+            id_coordinador,
+            'Evidencia Rechazada Definitivamente ❌',
+            'Tu evidencia ha sido rechazada definitivamente. Contacta al coordinador para más información.'
+          ]
+        );
+      }
+
+      await pool.query('COMMIT');
+
+      res.json({ 
+        success: true, 
+        message: "Evidencia revisada correctamente",
+        numero_devoluciones: numero_devoluciones,
+        estado_nuevo: estado_revision
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
   } catch (error) {
     console.error('Error al revisar evidencia:', error);
     res.status(500).json({ error: "Error al revisar evidencia" });
+  }
+};
+
+// Agregar esta función al activitiesController.js
+export const uploadSignedEvidenceByCoordinator = async (req, res) => {
+  try {
+    const { id_evidencia } = req.params;
+    const id_coordinador = req.user.id;
+    const archivo = req.file;
+    const { comentarios_aprobacion } = req.body;
+
+    // Verificar que el coordinador tenga acceso
+    const [access] = await pool.query(
+      `SELECT ea.id_evidencia, ea.id_usuario as id_estudiante, ea.titulo
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND port.id_coordinador = ? AND ea.activo = 1`,
+      [id_evidencia, id_coordinador]
+    );
+
+    if (access.length === 0) {
+      return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
+    }
+
+    const evidencia = access[0];
+    const archivoFirmadoRuta = archivo.path;
+    
+    // Actualizar evidencia con documento firmado y aprobación
+    await pool.query(
+      `UPDATE evidencias_actividad 
+       SET estado_revision = 'aprobado', 
+           comentarios_revision = ?, 
+           id_revisor = ?, 
+           fecha_revision = NOW(),
+           archivo_firmado_ruta = ?
+       WHERE id_evidencia = ?`,
+      [comentarios_aprobacion || 'Evidencia aprobada con documento firmado', id_coordinador, archivoFirmadoRuta, id_evidencia]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "Documento firmado subido y evidencia aprobada correctamente"
+    });
+
+  } catch (error) {
+    console.error('Error al subir documento firmado:', error);
+    res.status(500).json({ error: "Error al subir documento firmado" });
+  }
+};
+
+// NUEVA FUNCIÓN: Obtener historial de devoluciones
+// Agregar estas funciones al activitiesController.js
+
+export const getEvidenceReturns = async (req, res) => {
+  try {
+    const { id_evidencia } = req.params;
+    const id_usuario = req.user.id;
+
+    // Verificar acceso
+    const [access] = await pool.query(
+      `SELECT ea.id_usuario as id_estudiante, port.id_coordinador
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND ea.activo = 1`,
+      [id_evidencia]
+    );
+
+    if (access.length === 0) {
+      return res.status(404).json({ error: "Evidencia no encontrada" });
+    }
+
+    const { id_estudiante, id_coordinador } = access[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
+    }
+
+    // Obtener información general de la evidencia
+    const [evidenciaInfo] = await pool.query(
+      `SELECT numero_devoluciones, fecha_primera_devolucion, fecha_ultima_devolucion, estado_revision
+       FROM evidencias_actividad
+       WHERE id_evidencia = ?`,
+      [id_evidencia]
+    );
+
+    res.json({
+      evidencia: evidenciaInfo[0] || {},
+      historial_devoluciones: []
+    });
+
+  } catch (error) {
+    console.error('Error al obtener historial de devoluciones:', error);
+    res.status(500).json({ error: "Error al obtener historial" });
+  }
+};
+
+export const downloadSignedDocument = async (req, res) => {
+  try {
+    const { id_evidencia } = req.params;
+    const id_usuario = req.user.id;
+
+    // Verificar acceso y obtener ruta del archivo firmado
+    const [evidencia] = await pool.query(
+      `SELECT ea.archivo_firmado_ruta, ea.nombre_archivo, ea.id_usuario as id_estudiante, port.id_coordinador
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND ea.activo = 1`,
+      [id_evidencia]
+    );
+
+    if (evidencia.length === 0) {
+      return res.status(404).json({ error: "Evidencia no encontrada" });
+    }
+
+    const { archivo_firmado_ruta, nombre_archivo, id_estudiante, id_coordinador } = evidencia[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
+    }
+
+    if (!archivo_firmado_ruta) {
+      return res.status(404).json({ error: "No hay archivo firmado disponible" });
+    }
+
+    // Descargar archivo firmado
+    try {
+      await fs.access(archivo_firmado_ruta);
+      const nombreFirmado = `FIRMADO_${nombre_archivo}`;
+      res.download(archivo_firmado_ruta, nombreFirmado);
+    } catch {
+      return res.status(404).json({ error: "Archivo firmado no encontrado en el servidor" });
+    }
+
+  } catch (error) {
+    console.error('Error al descargar documento firmado:', error);
+    res.status(500).json({ error: "Error al descargar documento firmado" });
+  }
+};
+
+export const getEvidenceSignature = async (req, res) => {
+  try {
+    const { id_evidencia } = req.params;
+    const id_usuario = req.user.id;
+
+    // Verificar acceso
+    const [access] = await pool.query(
+      `SELECT ea.id_usuario as id_estudiante, port.id_coordinador
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE ea.id_evidencia = ? AND ea.activo = 1`,
+      [id_evidencia]
+    );
+
+    if (access.length === 0) {
+      return res.status(404).json({ error: "Evidencia no encontrada" });
+    }
+
+    const { id_estudiante, id_coordinador } = access[0];
+    const hasAccess = id_usuario === id_estudiante || id_usuario === id_coordinador;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "No tienes acceso a esta evidencia" });
+    }
+
+    // Obtener firma digital
+    const [firma] = await pool.query(
+      `SELECT 
+        fd.firma_coordinador,
+        fd.fecha_firma,
+        fd.metadatos_firma,
+        u.nombre as coordinador_nombre,
+        u.apellido as coordinador_apellido
+       FROM firmas_digitales fd
+       INNER JOIN usuarios u ON fd.id_coordinador = u.id_usuario
+       WHERE fd.id_evidencia = ?
+       ORDER BY fd.fecha_firma DESC
+       LIMIT 1`,
+      [id_evidencia]
+    );
+
+    if (firma.length === 0) {
+      return res.status(404).json({ error: "No hay firma digital disponible" });
+    }
+
+    res.json(firma[0]);
+
+  } catch (error) {
+    console.error('Error al obtener firma:', error);
+    res.status(500).json({ error: "Error al obtener firma" });
+  }
+};
+
+export const getStudentEvidenceNotifications = async (req, res) => {
+  try {
+    const id_estudiante = req.user.id;
+
+    const [notificaciones] = await pool.query(
+      `SELECT 
+        nd.id_notificacion,
+        nd.tipo_notificacion,
+        nd.titulo,
+        nd.mensaje,
+        nd.numero_devolucion,
+        nd.leida,
+        nd.fecha_creacion,
+        ea.titulo as evidencia_titulo,
+        ea.id_evidencia,
+        ap.titulo as actividad_titulo,
+        u.nombre as coordinador_nombre,
+        u.apellido as coordinador_apellido
+       FROM notificaciones_devoluciones nd
+       INNER JOIN evidencias_actividad ea ON nd.id_evidencia = ea.id_evidencia
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN usuarios u ON nd.id_coordinador = u.id_usuario
+       WHERE nd.id_estudiante = ?
+       ORDER BY nd.fecha_creacion DESC
+       LIMIT 50`,
+      [id_estudiante]
+    );
+
+    res.json(notificaciones);
+
+  } catch (error) {
+    console.error('Error al obtener notificaciones:', error);
+    res.status(500).json({ error: "Error al obtener notificaciones" });
+  }
+};
+
+// NUEVA FUNCIÓN: Marcar notificación como leída
+export const markEvidenceNotificationAsRead = async (req, res) => {
+  try {
+    const { id_notificacion } = req.params;
+    const id_estudiante = req.user.id;
+
+    // Verificar que la notificación pertenece al estudiante
+    const [notificacion] = await pool.query(
+      `SELECT id_notificacion FROM notificaciones_devoluciones 
+       WHERE id_notificacion = ? AND id_estudiante = ?`,
+      [id_notificacion, id_estudiante]
+    );
+
+    if (notificacion.length === 0) {
+      return res.status(404).json({ error: "Notificación no encontrada" });
+    }
+
+    // Marcar como leída
+    await pool.query(
+      `UPDATE notificaciones_devoluciones 
+       SET leida = TRUE 
+       WHERE id_notificacion = ?`,
+      [id_notificacion]
+    );
+
+    res.json({ success: true, message: "Notificación marcada como leída" });
+
+  } catch (error) {
+    console.error('Error al marcar notificación:', error);
+    res.status(500).json({ error: "Error al marcar notificación como leída" });
+  }
+};
+
+// NUEVA FUNCIÓN: Obtener estadísticas de devoluciones para coordinador
+export const getReturnsStatistics = async (req, res) => {
+  try {
+    const id_coordinador = req.user.id;
+
+    // Estadísticas generales
+    const [statsGenerales] = await pool.query(
+      `SELECT 
+        COUNT(DISTINCT ea.id_evidencia) as total_evidencias,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'aprobado' THEN ea.id_evidencia END) as aprobadas,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'devuelto' THEN ea.id_evidencia END) as devueltas,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'rechazado_final' THEN ea.id_evidencia END) as rechazadas,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'pendiente' THEN ea.id_evidencia END) as pendientes,
+        AVG(ea.numero_devoluciones) as promedio_devoluciones,
+        MAX(ea.numero_devoluciones) as max_devoluciones
+       FROM evidencias_actividad ea
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ? AND ea.activo = 1`,
+      [id_coordinador]
+    );
+
+    // Top motivos de devolución
+    const [motivosTop] = await pool.query(
+      `SELECT 
+        hd.motivo_devolucion,
+        COUNT(*) as cantidad,
+        ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM historial_devoluciones_evidencia hd2 
+                                   INNER JOIN evidencias_actividad ea2 ON hd2.id_evidencia = ea2.id_evidencia
+                                   INNER JOIN actividades_proyecto ap2 ON ea2.id_actividad = ap2.id_actividad
+                                   INNER JOIN proyectos p2 ON ap2.id_proyecto = p2.id_proyecto
+                                   INNER JOIN programas prog2 ON p2.id_programa = prog2.id_programa
+                                   INNER JOIN portafolios port2 ON prog2.id_portafolio = port2.id_portafolio
+                                   WHERE port2.id_coordinador = ?)), 1) as porcentaje
+       FROM historial_devoluciones_evidencia hd
+       INNER JOIN evidencias_actividad ea ON hd.id_evidencia = ea.id_evidencia
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ?
+       GROUP BY hd.motivo_devolucion
+       ORDER BY cantidad DESC
+       LIMIT 10`,
+      [id_coordinador, id_coordinador]
+    );
+
+    // Estudiantes con más devoluciones
+    const [estudiantesProblematicos] = await pool.query(
+      `SELECT 
+        u.nombre,
+        u.apellido,
+        u.id_usuario,
+        COUNT(DISTINCT ea.id_evidencia) as evidencias_subidas,
+        SUM(ea.numero_devoluciones) as total_devoluciones,
+        AVG(ea.numero_devoluciones) as promedio_devoluciones
+       FROM usuarios u
+       INNER JOIN evidencias_actividad ea ON u.id_usuario = ea.id_usuario
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ? AND ea.activo = 1 AND ea.numero_devoluciones > 0
+       GROUP BY u.id_usuario, u.nombre, u.apellido
+       HAVING total_devoluciones > 2
+       ORDER BY promedio_devoluciones DESC, total_devoluciones DESC
+       LIMIT 10`,
+      [id_coordinador]
+    );
+
+    // Tendencia de devoluciones por mes
+    const [tendenciaMensual] = await pool.query(
+      `SELECT 
+        DATE_FORMAT(hd.fecha_devolucion, '%Y-%m') as mes,
+        COUNT(*) as devoluciones,
+        COUNT(DISTINCT hd.id_evidencia) as evidencias_devueltas,
+        COUNT(DISTINCT ea.id_usuario) as estudiantes_afectados
+       FROM historial_devoluciones_evidencia hd
+       INNER JOIN evidencias_actividad ea ON hd.id_evidencia = ea.id_evidencia
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ? AND hd.fecha_devolucion >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+       GROUP BY DATE_FORMAT(hd.fecha_devolucion, '%Y-%m')
+       ORDER BY mes ASC`,
+      [id_coordinador]
+    );
+
+    res.json({
+      estadisticas_generales: statsGenerales[0],
+      motivos_principales: motivosTop,
+      estudiantes_con_mas_devoluciones: estudiantesProblematicos,
+      tendencia_mensual: tendenciaMensual
+    });
+
+  } catch (error) {
+    console.error('Error al obtener estadísticas de devoluciones:', error);
+    res.status(500).json({ error: "Error al obtener estadísticas" });
+  }
+};
+
+// NUEVA FUNCIÓN: Obtener alertas de evidencias para coordinador
+export const getCoordinatorEvidenceAlerts = async (req, res) => {
+  try {
+    const id_coordinador = req.user.id;
+
+    // Evidencias pendientes de revisión
+    const [evidenciasPendientes] = await pool.query(
+      `SELECT 
+        ea.id_evidencia,
+        ea.titulo,
+        ea.fecha_subida,
+        ea.numero_devoluciones,
+        ap.titulo as actividad_titulo,
+        u.nombre as estudiante_nombre,
+        u.apellido as estudiante_apellido,
+        DATEDIFF(NOW(), ea.fecha_subida) as dias_pendiente
+       FROM evidencias_actividad ea
+       INNER JOIN usuarios u ON ea.id_usuario = u.id_usuario
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ? 
+       AND ea.estado_revision IN ('pendiente', 'revision')
+       AND ea.activo = 1
+       ORDER BY ea.fecha_subida ASC
+       LIMIT 20`,
+      [id_coordinador]
+    );
+
+    // Evidencias con múltiples devoluciones
+    const [evidenciasProblematicas] = await pool.query(
+      `SELECT 
+        ea.id_evidencia,
+        ea.titulo,
+        ea.numero_devoluciones,
+        ea.fecha_ultima_devolucion,
+        ap.titulo as actividad_titulo,
+        u.nombre as estudiante_nombre,
+        u.apellido as estudiante_apellido,
+        DATEDIFF(NOW(), ea.fecha_ultima_devolucion) as dias_desde_devolucion
+       FROM evidencias_actividad ea
+       INNER JOIN usuarios u ON ea.id_usuario = u.id_usuario
+       INNER JOIN actividades_proyecto ap ON ea.id_actividad = ap.id_actividad
+       INNER JOIN proyectos p ON ap.id_proyecto = p.id_proyecto
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       WHERE port.id_coordinador = ? 
+       AND ea.numero_devoluciones >= 3
+       AND ea.estado_revision != 'aprobado'
+       AND ea.activo = 1
+       ORDER BY ea.numero_devoluciones DESC, ea.fecha_ultima_devolucion ASC
+       LIMIT 15`,
+      [id_coordinador]
+    );
+
+    res.json({
+      evidencias_pendientes: evidenciasPendientes,
+      evidencias_problematicas: evidenciasProblematicas
+    });
+
+  } catch (error) {
+    console.error('Error al obtener alertas:', error);
+    res.status(500).json({ error: "Error al obtener alertas" });
   }
 };

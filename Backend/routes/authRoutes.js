@@ -10,6 +10,9 @@ import {
   logout
 } from '../controllers/authController.js';
 
+import path from 'path';
+
+
 import {
   createCoordinator,
   getCoordinators,
@@ -76,9 +79,15 @@ import {
   uploadActivityEvidence,
   getActivityEvidences,
   getProjectMembers,
-   reviewEvidence,
+  reviewEvidence,
   downloadEvidence as downloadActivityEvidence,
-  upload as uploadActivity
+  upload as uploadActivity,
+  uploadSignedEvidenceByCoordinator,
+  getEvidenceReturns,
+  downloadSignedDocument,
+  getStudentEvidenceNotifications,
+  markEvidenceNotificationAsRead,
+  getEvidenceSignature
 } from '../controllers/activitiesController.js';
 
 import {
@@ -97,6 +106,8 @@ import {
 
 import { getEstudiantesByCarrera } from '../controllers/studentController.js';
 import { authenticate, canCreateMeetings, isStudent } from '../middlewares/auth.js';
+import multer from 'multer';
+
 
 // 🔥 NUEVO MIDDLEWARE PARA SUPERADMINISTRADORES
 const isSuperAdmin = (req, res, next) => {
@@ -107,6 +118,33 @@ const isSuperAdmin = (req, res, next) => {
   }
   next();
 };
+
+const signedDocsStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/documentos_firmados/');
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `firmado_${timestamp}_${originalName}`);
+  }
+});
+
+const uploadSignedDocs = multer({ 
+  storage: signedDocsStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos PDF, DOC, DOCX o imágenes'));
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -208,5 +246,29 @@ router.get('/proyectos/:id_proyecto/evidencias', authenticate, getEvidenciasByPr
 router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
 
 router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolioANDPROYECTS);
+
+router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
+
+// NUEVA: Subir documento firmado por coordinador
+router.post('/activities/evidence/:id_evidencia/upload-signed', 
+  authenticate, 
+  canCreateMeetings, 
+  uploadSignedDocs.single('documento_firmado'), 
+  uploadSignedEvidenceByCoordinator
+);
+
+// NUEVA: Obtener historial de devoluciones
+router.get('/activities/evidence/:id_evidencia/returns', authenticate, getEvidenceReturns);
+
+// NUEVA: Descargar documento firmado
+router.get('/activities/evidence/:id_evidencia/download-signed', authenticate, downloadSignedDocument);
+
+// NUEVA: Obtener notificaciones de devoluciones para estudiantes
+router.get('/student/evidence/notifications', authenticate, isStudent, getStudentEvidenceNotifications);
+
+// NUEVA: Marcar notificación como leída
+router.put('/student/evidence/notifications/:id_notificacion/read', authenticate, isStudent, markEvidenceNotificationAsRead);
+
+router.get('/activities/evidence/:id_evidencia/signature', authenticate, getEvidenceSignature);
 
 export default router;

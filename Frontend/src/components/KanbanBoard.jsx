@@ -20,6 +20,11 @@ import {
 } from 'react-icons/ai';
 import api from '../api/api';
 
+import EvidenceReviewModal from '../components/Evidence/EvidenceReviewModal';
+import EvidenceReturnsHistory from '../components/Evidence/EvidenceReturnsHistory';
+
+import './KanbanBoard.css';
+
 const KanbanBoard = ({
   projectId,
   userRole = 'estudiante',
@@ -38,6 +43,15 @@ const KanbanBoard = ({
   const [showActivityDetailModal, setShowActivityDetailModal] = useState(false); // Nuevo modal
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [evidences, setEvidences] = useState([]);
+
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showReturnsHistory, setShowReturnsHistory] = useState(false);
+  const [selectedEvidenceForReview, setSelectedEvidenceForReview] = useState(null);
+  const [selectedEvidenceForHistory, setSelectedEvidenceForHistory] = useState(null);
+  // Agregar estos estados
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [selectedSignature, setSelectedSignature] = useState(null);
+
 
   // Estados para formularios
   const [newActivity, setNewActivity] = useState({
@@ -68,6 +82,26 @@ const KanbanBoard = ({
     'media': { color: '#f59e0b', icon: '🟡' },
     'alta': { color: '#ef4444', icon: '🔴' },
     'critica': { color: '#dc2626', icon: '🚨' }
+  };
+
+  const downloadActivityEvidence = async (id_evidencia) => {
+    try {
+      const response = await api.get(`/auth/activities/evidence/${id_evidencia}/download`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'evidencia.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+    } catch (error) {
+      console.error('Error al descargar:', error);
+      setError('Error al descargar el archivo');
+    }
   };
 
   useEffect(() => {
@@ -168,6 +202,7 @@ const KanbanBoard = ({
       setEvidences(res.data);
       setSelectedActivity(activity);
       setShowEvidenceListModal(true);
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
       setError("Error al cargar evidencias");
     }
@@ -192,52 +227,39 @@ const KanbanBoard = ({
       document.body.appendChild(link);
       link.click();
       link.remove();
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
       setError("Error al descargar archivo");
     }
   };
 
-  // FUNCIÓN MODIFICADA con logs para debug
-  const handleChangeEvidenceStatus = async (evidenceId, nuevoEstado) => {
+
+  const handleViewApprovalSignature = async (evidencia) => {
     try {
-      console.log('🔍 Cambiando estado a:', nuevoEstado);
-      console.log('🔍 ID de evidencia:', evidenceId);
+      const response = await api.get(`/auth/activities/evidence/${evidencia.id_evidencia}/signature`);
+      setSelectedSignature(response.data);
+      setShowSignatureModal(true);
+    } catch (error) {
+      console.error('Error al obtener firma:', error);
+      setError('Error al cargar la firma de aprobación');
+    }
+  };
 
-      let comentarios = '';
-
-      if (nuevoEstado === 'rechazado') {
-        comentarios = prompt('Ingresa comentarios sobre el rechazo:');
-        if (!comentarios) {
-          setError("Los comentarios son obligatorios para rechazar");
-          return;
-        }
-      } else if (nuevoEstado === 'revision') {
-        comentarios = prompt('Ingresa comentarios para revisión (opcional):') || 'En revisión';
-      } else if (nuevoEstado === 'aprobado') {
-        comentarios = 'Evidencia aprobada';
-      } else if (nuevoEstado === 'pendiente') {
-        comentarios = 'Regresado a pendiente';
-      }
-
-      console.log('🔍 Comentarios:', comentarios);
-
-      const response = await api.put(`/auth/activities/evidence/${evidenceId}/review`, {
-        estado_revision: nuevoEstado,
-        comentarios_revision: comentarios
+  // FUNCIÓN MODIFICADA con logs para debug
+  const _handleChangeEvidenceStatus = async (id_evidencia, nuevoEstado) => {
+    try {
+      setLoading(true);
+      await api.put(`/auth/activities/evidence/${id_evidencia}/status`, {
+        estado: nuevoEstado
       });
 
-      console.log('🔍 Respuesta del servidor:', response.data);
-
-      setSuccess(`Evidencia marcada como ${nuevoEstado} correctamente`);
-
-      // Recargar evidencias para mostrar el nuevo estado
-      if (selectedActivity) {
-        handleViewEvidences(selectedActivity);
-      }
+      setSuccess("Estado de evidencia actualizado correctamente");
+      fetchActivities(); // Recargar actividades
     } catch (error) {
-      console.error('❌ Error completo:', error);
-      console.error('❌ Respuesta del error:', error.response?.data);
+      console.error('Error al cambiar estado:', error);
       setError("Error al cambiar estado de evidencia: " + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -295,10 +317,6 @@ const KanbanBoard = ({
 
 
   // Verificar si puede aprobar evidencias
-  const canApproveEvidence = () => {
-    console.log('🔍 User role actual:', userRole);
-    return userRole === 'coordinador';
-  };
 
   const canApproveActivities = () => {
     return userRole === 'coordinador' || userRole === 'lider';
@@ -308,6 +326,145 @@ const KanbanBoard = ({
   const getRoleIcon = (rol) => {
     return rol === 'lider' ? <AiOutlineTrophy style={{ color: '#f59e0b' }} /> : <AiOutlineUser />;
   };
+
+  // Función para abrir modal de revisión (coordinadores)
+  const handleReviewEvidence = (evidencia) => {
+    setSelectedEvidenceForReview(evidencia);
+    setShowReviewModal(true);
+  };
+
+  // Función para ver historial de devoluciones (estudiantes)
+  const handleViewReturnsHistory = (evidencia) => {
+    setSelectedEvidenceForHistory(evidencia);
+    setShowReturnsHistory(true);
+  };
+
+  // Función para cerrar modales
+  const handleCloseModals = () => {
+    setShowReviewModal(false);
+    setShowReturnsHistory(false);
+    setSelectedEvidenceForReview(null);
+    setSelectedEvidenceForHistory(null);
+  };
+
+  // Función para completar revisión y recargar datos
+  const handleReviewComplete = () => {
+    fetchActivities(); // Recargar actividades
+    setSuccess('Evidencia revisada correctamente');
+  };
+
+  const downloadSignedDocument = async (id_evidencia) => {
+    try {
+      const response = await api.get(`/auth/activities/evidence/${id_evidencia}/download-signed`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'documento_firmado.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+    } catch (error) {
+      console.error('Error al descargar documento firmado:', error);
+      setError('Error al descargar el documento firmado');
+    }
+  };
+
+  const renderEvidenceActions = (evidencia) => {
+    if (userRole === 'coordinador') {
+      return (
+        <div className="evidence-actions">
+          <button
+            className="btn-review"
+            onClick={() => handleReviewEvidence(evidencia)}
+            title="Revisar evidencia"
+          >
+            👁️ Revisar
+          </button>
+          <button
+            className="btn-download"
+            onClick={() => downloadActivityEvidence(evidencia.id_evidencia)}
+            title="Descargar archivo original"
+          >
+            📥 Descargar
+          </button>
+          {evidencia.archivo_firmado_ruta && (
+            <button
+              className="btn-download-signed"
+              onClick={() => downloadSignedDocument(evidencia.id_evidencia)}
+              title="Descargar documento firmado"
+            >
+              📄 Firmado
+            </button>
+          )}
+        </div>
+      );
+    } else {
+      // Vista para estudiantes
+      return (
+        <div className="evidence-actions">
+          <button
+            className="btn-download"
+            onClick={() => downloadActivityEvidence(evidencia.id_evidencia)}
+            title="Descargar mi evidencia"
+          >
+            📥 Descargar
+          </button>
+
+          {/* Botón para ver historial siempre disponible */}
+          <button
+            className="btn-history"
+            onClick={() => handleViewReturnsHistory(evidencia)}
+            title="Ver historial de revisiones"
+          >
+            📋 Historial {evidencia.numero_devoluciones > 0 ? `(${evidencia.numero_devoluciones})` : ''}
+          </button>
+
+          {/* Mostrar firma si está aprobado */}
+          {evidencia.estado_revision === 'aprobado' && (
+            <button
+              className="btn-view-signature"
+              onClick={() => handleViewApprovalSignature(evidencia)}
+              title="Ver firma de aprobación"
+            >
+              ✍️ Ver Firma
+            </button>
+          )}
+
+          {/* Descargar firmado solo si existe archivo */}
+          {evidencia.archivo_firmado_ruta && (
+            <button
+              className="btn-download-signed"
+              onClick={() => downloadSignedDocument(evidencia.id_evidencia)}
+              title="Descargar documento firmado"
+            >
+              📄 Descargar Firmado
+            </button>
+          )}
+        </div>
+      );
+    }
+  };
+
+  const getEstadoBadge = (estado, devoluciones) => {
+    switch (estado) {
+      case 'aprobado':
+        return <span className="status-badge approved">✅ Aprobado</span>;
+      case 'devuelto':
+        return <span className="status-badge returned">↩️ Devuelto ({devoluciones})</span>;
+      case 'rechazado_final':
+        return <span className="status-badge rejected">❌ Rechazado</span>;
+      case 'revision':
+        return <span className="status-badge reviewing">👀 En Revisión</span>;
+      default:
+        return <span className="status-badge pending">⏳ Pendiente</span>;
+    }
+  };
+
+
 
   const groupedActivities = estados.reduce((acc, estado) => {
     acc[estado.key] = activities.filter(activity => activity.estado === estado.key);
@@ -321,6 +478,9 @@ const KanbanBoard = ({
       </div>
     );
   }
+
+
+
 
   return (
     <div className="kanban-board">
@@ -890,68 +1050,36 @@ const KanbanBoard = ({
                         <div className="evidence-info">
                           <h4>{evidence.titulo}</h4>
                           <p>Por: {evidence.usuario_nombre} {evidence.usuario_apellido}</p>
+                          <div className="evidence-meta">
+                            <span className="evidence-date">
+                              📅 {new Date(evidence.fecha_subida).toLocaleDateString('es-ES')}
+                            </span>
+                            {evidence.numero_devoluciones > 0 && (
+                              <span className="return-count">
+                                ↩️ Devoluciones: {evidence.numero_devoluciones}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className={`evidence-status ${evidence.estado_revision}`}>
-                          {evidence.estado_revision}
-                        </div>
+                        {getEstadoBadge(evidence.estado_revision, evidence.numero_devoluciones)}
                       </div>
 
                       {evidence.descripcion && (
                         <p className="evidence-description">{evidence.descripcion}</p>
                       )}
-                      {/* NUEVO: Mostrar comentarios de rechazo */}
-                      {evidence.estado_revision === 'rechazado' && evidence.comentarios_revision && (
-                        <div className="evidence-rejection">
-                          <strong>Rechazado por:</strong>
-                          <p className="rejection-comments">{evidence.comentarios_revision}</p>
+
+                      {evidence.comentarios_revision && (
+                        <div className="evidence-comments">
+                          <strong>Comentarios del coordinador:</strong>
+                          <p>{evidence.comentarios_revision}</p>
                           {evidence.revisor_nombre && (
                             <small>- {evidence.revisor_nombre} {evidence.revisor_apellido}</small>
                           )}
                         </div>
                       )}
 
-
-                      <div className="evidence-actions">
-                        {evidence.tipo_archivo !== 'link' && (
-                          <button
-                            className="btn-icon"
-                            onClick={() => handleDownloadEvidence(evidence.id_evidencia, evidence.nombre_archivo)}
-                            title="Descargar"
-                          >
-                            <AiOutlineDownload />
-                          </button>
-                        )}
-
-                        {evidence.tipo_archivo === 'link' && (
-                          <a
-                            href={evidence.url_externa}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-icon"
-                            title="Abrir link"
-                          >
-                            <AiOutlineLink />
-                          </a>
-                        )}
-
-                        {canApproveEvidence() && (
-                          <div className="evidence-status-selector">
-                            <label className="status-label">Estado:</label>
-                            <select
-                              className="status-select"
-                              value={evidence.estado_revision || 'pendiente'}
-                              onChange={(e) => handleChangeEvidenceStatus(evidence.id_evidencia, e.target.value)}
-                            >
-                              <option value="pendiente">Pendiente</option>
-                              <option value="revision">En Revisión</option>
-                              <option value="aprobado">Aprobado</option>
-                              <option value="rechazado">Rechazado</option>
-                            </select>
-
-                          </div>
-
-                        )}
-                      </div>
+                      {/* USAR LA NUEVA FUNCIÓN DE ACCIONES */}
+                      {renderEvidenceActions(evidence)}
 
                       <div className="evidence-meta">
                         <small>Subido: {formatDate(evidence.fecha_subida)}</small>
@@ -959,21 +1087,72 @@ const KanbanBoard = ({
                           <small>Revisado: {formatDate(evidence.fecha_revision)}</small>
                         )}
                       </div>
-
-                      {evidence.comentarios_revision && (
-                        <div className="evidence-comments">
-                          <strong>Comentarios del revisor:</strong>
-                          <p>{evidence.comentarios_revision}</p>
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
+
         </div>
+
       )}
+
+      {/* Modales de Evidencias */}
+      {showReviewModal && selectedEvidenceForReview && (
+        <EvidenceReviewModal
+          evidencia={selectedEvidenceForReview}
+          onClose={handleCloseModals}
+          onReviewComplete={handleReviewComplete}
+        />
+      )}
+
+      {showReturnsHistory && selectedEvidenceForHistory && (
+        <EvidenceReturnsHistory
+          evidencia={selectedEvidenceForHistory}
+          onClose={handleCloseModals}
+        />
+      )}
+      {showSignatureModal && selectedSignature && (
+        <SignatureViewModal
+          signature={selectedSignature}
+          onClose={() => {
+            setShowSignatureModal(false);
+            setSelectedSignature(null);
+          }}
+        />
+      )}
+
+    </div>
+
+  );
+
+};
+
+
+
+const SignatureViewModal = ({ signature, onClose }) => {
+  if (!signature) return null;
+
+  return (
+    <div className="signature-view-overlay">
+      <div className="signature-view-modal">
+        <div className="modal-header">
+          <h3>Firma de Aprobación</h3>
+          <button onClick={onClose}>×</button>
+        </div>
+        <div className="signature-content">
+          <img
+            src={signature.firma_coordinador}
+            alt="Firma del coordinador"
+            className="signature-image"
+          />
+          <div className="signature-info">
+            <p><strong>Coordinador:</strong> {signature.coordinador_nombre} {signature.coordinador_apellido}</p>
+            <p><strong>Fecha:</strong> {new Date(signature.fecha_firma).toLocaleString('es-ES')}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
