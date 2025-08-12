@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import multer from 'multer';
 import {
   register,
   login,
@@ -10,8 +12,13 @@ import {
   logout
 } from '../controllers/authController.js';
 
-import path from 'path';
-
+import { 
+  uploadSignedEvidenceByCoordinator,  
+  getEvidenceReturns,
+  downloadSignedDocument,
+  getStudentEvidenceNotifications,
+  markEvidenceNotificationAsRead
+} from '../controllers/activitiesController.js';
 
 import {
   createCoordinator,
@@ -67,8 +74,8 @@ import {
   getStudentEvidenceStats,
   getEvidenceNotifications,
   markNotificationAsRead,
-   getAllStudentEvidencesUnified,
-   getUnifiedEvidenceStats
+  getAllStudentEvidencesUnified,
+  getUnifiedEvidenceStats
 } from '../controllers/evidenceController.js';
 
 import {
@@ -82,11 +89,6 @@ import {
   reviewEvidence,
   downloadEvidence as downloadActivityEvidence,
   upload as uploadActivity,
-  uploadSignedEvidenceByCoordinator,
-  getEvidenceReturns,
-  downloadSignedDocument,
-  getStudentEvidenceNotifications,
-  markEvidenceNotificationAsRead,
   getEvidenceSignature
 } from '../controllers/activitiesController.js';
 
@@ -106,10 +108,8 @@ import {
 
 import { getEstudiantesByCarrera } from '../controllers/studentController.js';
 import { authenticate, canCreateMeetings, isStudent } from '../middlewares/auth.js';
-import multer from 'multer';
 
-
-// 🔥 NUEVO MIDDLEWARE PARA SUPERADMINISTRADORES
+// 🔥 MIDDLEWARE PARA SUPERADMINISTRADORES
 const isSuperAdmin = (req, res, next) => {
   if (req.user.rol !== 'Administrador') {
     return res.status(403).json({
@@ -119,36 +119,61 @@ const isSuperAdmin = (req, res, next) => {
   next();
 };
 
+// 🔥 CONFIGURACIÓN MULTER PARA DOCUMENTOS FIRMADOS
 const signedDocsStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/documentos_firmados/');
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads/documentos_firmados');
+    try {
+      // Crear directorio si no existe
+      const fs = await import('fs/promises');
+      await fs.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
   },
   filename: (req, file, cb) => {
     const timestamp = Date.now();
-    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, `firmado_${timestamp}_${originalName}`);
+    const extension = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, extension);
+    const safeName = baseName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `firmado_${timestamp}_${safeName}${extension}`);
   }
 });
 
 const uploadSignedDocs = multer({ 
   storage: signedDocsStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB como las evidencias normales
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|jpg|jpeg|png/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    // Usar los mismos tipos permitidos que las evidencias normales
+    const allowedTypes = [
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/gif',
+      'video/mp4', 
+      'audio/mp3', 
+      'audio/mpeg',
+      'application/zip', 
+      'text/plain'
+    ];
     
-    if (mimetype && extname) {
-      return cb(null, true);
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
     } else {
-      cb(new Error('Solo se permiten archivos PDF, DOC, DOCX o imágenes'));
+      cb(new Error('Tipo de archivo no permitido'), false);
     }
   }
 });
 
 const router = express.Router();
 
-// Rutas de autenticación básicas
+// ===== RUTAS DE AUTENTICACIÓN =====
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', authenticate, getProfile);
@@ -158,47 +183,45 @@ router.post('/reset-password', resetPassword);
 router.get('/activar/:token', activarCuenta);
 router.post('/logout', authenticate, logout);
 
-// 🔥 NUEVAS RUTAS PARA GESTIÓN DE USUARIOS (Solo superadministradores)
+// ===== RUTAS PARA GESTIÓN DE USUARIOS (Solo superadministradores) =====
 router.post('/coordinators', authenticate, isSuperAdmin, createCoordinator);
 router.get('/coordinators', authenticate, isSuperAdmin, getCoordinators);
 router.put('/coordinators/:id/toggle-status', authenticate, isSuperAdmin, toggleCoordinatorStatus);
 router.get('/users/stats', authenticate, isSuperAdmin, getUserStats);
 
-// Rutas existentes de portafolios
+// ===== RUTAS DE PORTAFOLIOS =====
 router.post('/portafolios', authenticate, createPortfolio);
 router.get('/profesores', authenticate, getProfesores);
 router.get('/mis-portafolios', authenticate, getPortafoliosByCoordinador);
 router.put('/:id/eliminar-portafolio', authenticate, eliminarPortafolio);
 router.put('/:id', authenticate, editarPortafolio);
 router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolio);
-
 router.get('/portafolios/:id_portafolio/programas', authenticate, getProgramasPortafolio);
 router.get('/portafolios/:id_portafolio/asesores', authenticate, getAsesoresPortafolio);
 router.post('/portafolios/:id_portafolio/programas', authenticate, createPrograma);
-
-// Nuevas rutas para portafolios asignados y gestión de proyectos
 router.get('/portafolios/asignados', authenticate, getPortafoliosAsignados);
+router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolioANDPROYECTS);
 
+// ===== RUTAS DE PROGRAMAS Y PROYECTOS =====
 router.get('/programas/:id_programa/proyectos', authenticate, getProyectosPrograma);
 router.get('/programas/:id_programa/estudiantes', authenticate, getEstudiantesPrograma);
 router.post('/programas/:id_programa/proyectos', authenticate, createProyecto); 
 router.get('/programas/:id_programa/proyectos/:id_proyecto/estudiantes', authenticate, getEstudiantesProyecto);
 
+// ===== RUTAS PARA ESTUDIANTES =====
 router.get('/student/stats', authenticate, getStudentStats);
 router.get('/student/stats-enhanced', authenticate, getEnhancedStudentStats);
 router.get('/student/portafolios', authenticate, getStudentPortafolios);
 router.get('/student/portafolios/:id', authenticate, getStudentPortfolioDetails);
 router.get('/student/portafolios-hierarchy', authenticate, getStudentPortfoliosWithHierarchy);
-
 router.get('/student/proyectos', authenticate, getStudentProjectsOld);
 router.get('/student/proyectos/:id_proyecto', authenticate, getProjectDetails);
 router.put('/student/proyectos/:id_proyecto/progress', authenticate, updateProjectProgress);
-
 router.get('/student/my-projects', authenticate, getStudentProjects);
-
 router.get('/student/alertas', authenticate, getStudentAlerts);
 router.put('/student/alertas/:id_alerta/read', authenticate, markAlertAsRead);
 
+// ===== RUTAS DE EVIDENCIAS GENERALES =====
 router.post('/student/evidencias/upload', authenticate, upload.single('archivo'), uploadEvidence);
 router.post('/student/evidencias/upload-link', authenticate, uploadEvidenceLink);
 router.get('/student/evidencias/proyecto/:id_proyecto', authenticate, getStudentEvidences);
@@ -212,44 +235,22 @@ router.get('/student/evidencias/categorias', authenticate, getEvidenceCategories
 router.get('/student/evidencias/stats', authenticate, getStudentEvidenceStats);
 router.get('/student/evidencias/notificaciones', authenticate, getEvidenceNotifications);
 router.put('/student/evidencias/notificaciones/:id_notificacion/read', authenticate, markNotificationAsRead);
-
-router.get('/activities/project/:id_proyecto', authenticate, getProjectActivities);
-router.post('/activities/project/:id_proyecto', authenticate, createActivity);
-router.put('/activities/:id_actividad/status', authenticate, updateActivityStatus);
-
-router.post('/activities/:id_actividad/evidence', authenticate, uploadActivity.single('archivo'), uploadActivityEvidence);
-router.get('/activities/:id_actividad/evidences', authenticate, getActivityEvidences);
-router.get('/activities/evidence/:id_evidencia/download', authenticate, downloadActivityEvidence);
-
-router.get('/activities/project/:id_proyecto/members', authenticate, getProjectMembers);
-
-router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
 router.get('/student/evidencias/todas-unificadas', authenticate, getAllStudentEvidencesUnified);
 router.get('/student/evidencias/stats-unificadas', authenticate, getUnifiedEvidenceStats);
 
-router.post('/reuniones', authenticate, canCreateMeetings, crearReunion);
-router.get('/reuniones/coordinador', authenticate, canCreateMeetings, getReunionesCoordinador);
-router.get('/reuniones/estudiante', authenticate, isStudent, getReunionesEstudiante);
-router.get('/reuniones/stats', authenticate, canCreateMeetings, getEstadisticasReuniones);
+// ===== RUTAS DE ACTIVIDADES Y EVIDENCIAS DE ACTIVIDADES =====
+router.get('/activities/project/:id_proyecto', authenticate, getProjectActivities);
+router.post('/activities/project/:id_proyecto', authenticate, createActivity);
+router.put('/activities/:id_actividad/status', authenticate, updateActivityStatus);
+router.post('/activities/:id_actividad/evidence', authenticate, uploadActivity.single('archivo'), uploadActivityEvidence);
+router.get('/activities/:id_actividad/evidences', authenticate, getActivityEvidences);
+router.get('/activities/evidence/:id_evidencia/download', authenticate, downloadActivityEvidence);
+router.get('/activities/project/:id_proyecto/members', authenticate, getProjectMembers);
 
-router.get('/reuniones/proyectos', authenticate, canCreateMeetings, getProyectosParaReuniones);
-router.get('/reuniones/proyectos/:id_proyecto/estudiantes', authenticate, canCreateMeetings, getEstudiantesProyectoReunion);
-
-router.get('/reuniones/:id_reunion', authenticate, getDetalleReunion);
-router.put('/reuniones/:id_reunion', authenticate, canCreateMeetings, actualizarReunion);
-router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirmarAsistencia);
-
-router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
-router.get('/proyectos/:id_proyecto/actividades', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
-router.get('/proyectos/:id_proyecto/evidencias', authenticate, getEvidenciasByProyecto);
-
+// ===== RUTAS DE REVISIÓN Y FIRMA DE EVIDENCIAS =====
 router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
 
-router.get('/portafolios/:id/estudiantes', authenticate, getEstudiantesPortafolioANDPROYECTS);
-
-router.put('/activities/evidence/:id_evidencia/review', authenticate, canCreateMeetings, reviewEvidence);
-
-// NUEVA: Subir documento firmado por coordinador
+// Subir documento firmado por coordinador
 router.post('/activities/evidence/:id_evidencia/upload-signed', 
   authenticate, 
   canCreateMeetings, 
@@ -257,18 +258,36 @@ router.post('/activities/evidence/:id_evidencia/upload-signed',
   uploadSignedEvidenceByCoordinator
 );
 
-// NUEVA: Obtener historial de devoluciones
+// Obtener historial de devoluciones
 router.get('/activities/evidence/:id_evidencia/returns', authenticate, getEvidenceReturns);
 
-// NUEVA: Descargar documento firmado
+// Descargar documento firmado
 router.get('/activities/evidence/:id_evidencia/download-signed', authenticate, downloadSignedDocument);
 
-// NUEVA: Obtener notificaciones de devoluciones para estudiantes
-router.get('/student/evidence/notifications', authenticate, isStudent, getStudentEvidenceNotifications);
+// Obtener firma digital
+router.get('/activities/evidence/:id_evidencia/signature', authenticate, getEvidenceSignature);
 
-// NUEVA: Marcar notificación como leída
+// Notificaciones de devoluciones para estudiantes
+router.get('/student/evidence/notifications', authenticate, isStudent, getStudentEvidenceNotifications);
 router.put('/student/evidence/notifications/:id_notificacion/read', authenticate, isStudent, markEvidenceNotificationAsRead);
 
-router.get('/activities/evidence/:id_evidencia/signature', authenticate, getEvidenceSignature);
+// ===== RUTAS DE REUNIONES =====
+router.post('/reuniones', authenticate, canCreateMeetings, crearReunion);
+router.get('/reuniones/coordinador', authenticate, canCreateMeetings, getReunionesCoordinador);
+router.get('/reuniones/estudiante', authenticate, isStudent, getReunionesEstudiante);
+router.get('/reuniones/stats', authenticate, canCreateMeetings, getEstadisticasReuniones);
+router.get('/reuniones/proyectos', authenticate, canCreateMeetings, getProyectosParaReuniones);
+router.get('/reuniones/proyectos/:id_proyecto/estudiantes', authenticate, canCreateMeetings, getEstudiantesProyectoReunion);
+router.get('/reuniones/:id_reunion', authenticate, getDetalleReunion);
+router.put('/reuniones/:id_reunion', authenticate, canCreateMeetings, actualizarReunion);
+router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirmarAsistencia);
+
+// ===== RUTAS DE PROYECTOS PARA COORDINADORES =====
+router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
+router.get('/proyectos/:id_proyecto/actividades', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
+router.get('/proyectos/:id_proyecto/evidencias', authenticate, getEvidenciasByProyecto);
+
+// ===== RUTAS MISCELÁNEAS =====
+router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
 
 export default router;

@@ -84,25 +84,41 @@ const KanbanBoard = ({
     'critica': { color: '#dc2626', icon: '🚨' }
   };
 
-  const downloadActivityEvidence = async (id_evidencia) => {
-    try {
-      const response = await api.get(`/auth/activities/evidence/${id_evidencia}/download`, {
-        responseType: 'blob'
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'evidencia.pdf');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-    } catch (error) {
-      console.error('Error al descargar:', error);
-      setError('Error al descargar el archivo');
+const downloadActivityEvidence = async (id_evidencia) => {
+  try {
+    const response = await api.get(`/auth/activities/evidence/${id_evidencia}/download`, {
+      responseType: 'blob'
+    });
+    
+    // Obtener el nombre del archivo del header Content-Disposition si existe
+    const contentDisposition = response.headers['content-disposition'];
+    let fileName = 'evidencia.pdf';
+    
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+      if (fileNameMatch) {
+        fileName = fileNameMatch[1];
+      }
     }
-  };
+    
+    // Crear blob y descargar
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Limpiar
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    
+  } catch (error) {
+    console.error('Error al descargar evidencia original:', error);
+    setError('Error al descargar el archivo original');
+  }
+};
 
   useEffect(() => {
     if (projectId) {
@@ -327,8 +343,8 @@ const KanbanBoard = ({
     return rol === 'lider' ? <AiOutlineTrophy style={{ color: '#f59e0b' }} /> : <AiOutlineUser />;
   };
 
-  // Función para abrir modal de revisión (coordinadores)
   const handleReviewEvidence = (evidencia) => {
+    console.log('📋 Evidencia seleccionada para revisar:', evidencia);
     setSelectedEvidenceForReview(evidencia);
     setShowReviewModal(true);
   };
@@ -384,13 +400,6 @@ const KanbanBoard = ({
           >
             👁️ Revisar
           </button>
-          <button
-            className="btn-download"
-            onClick={() => downloadActivityEvidence(evidencia.id_evidencia)}
-            title="Descargar archivo original"
-          >
-            📥 Descargar
-          </button>
           {evidencia.archivo_firmado_ruta && (
             <button
               className="btn-download-signed"
@@ -434,16 +443,6 @@ const KanbanBoard = ({
             </button>
           )}
 
-          {/* Descargar firmado solo si existe archivo */}
-          {evidencia.archivo_firmado_ruta && (
-            <button
-              className="btn-download-signed"
-              onClick={() => downloadSignedDocument(evidencia.id_evidencia)}
-              title="Descargar documento firmado"
-            >
-              📄 Descargar Firmado
-            </button>
-          )}
         </div>
       );
     }

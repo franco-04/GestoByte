@@ -151,7 +151,11 @@ const EvidenceReviewModal = ({ evidencia, onClose, onReviewComplete }) => {
         formData.append('documento_firmado', signedDocument);
         formData.append('comentarios_aprobacion', comentarios);
 
-        await api.post(`/auth/activities/evidence/${evidencia.id_evidencia}/upload-signed`, formData);
+        await api.post(`/auth/activities/evidence/${evidencia.id_evidencia}/upload-signed`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
         
       } else {
         // Revisar con firma digital o devolver
@@ -171,30 +175,45 @@ const EvidenceReviewModal = ({ evidencia, onClose, onReviewComplete }) => {
       onClose();
       
     } catch (error) {
-      console.error('Error al revisar evidencia:', error);
-      alert('Error al procesar la revisión');
-    } finally {
+        console.error('Error al revisar evidencia:', error);
+        alert('Error al procesar la revisión: ' + (error.response?.data?.error || error.message));
+      } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    console.log('🔍 Evidencia recibida en modal:', evidencia);
+    console.log('📄 Nombre archivo:', evidencia?.nombre_archivo);
+    console.log('📁 Tipo archivo:', evidencia?.tipo_archivo);
+  }, [evidencia]);
+
   const downloadOriginal = async () => {
     try {
+      console.log('🔽 Descargando archivo original:', evidencia.nombre_archivo);
+      
       const response = await api.get(`/auth/activities/evidence/${evidencia.id_evidencia}/download`, {
         responseType: 'blob'
       });
       
+      // Usar el nombre exacto del archivo de la base de datos
+      const fileName = evidencia.nombre_archivo || 'evidencia.pdf';
+      
+      console.log('📄 Archivo a descargar:', fileName);
+      console.log('📦 Tamaño del blob:', response.data.size);
+      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', evidencia.nombre_archivo || 'evidencia.pdf');
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
       
     } catch (error) {
-      console.error('Error al descargar:', error);
-      alert('Error al descargar el archivo');
+      console.error('Error al descargar archivo original:', error);
+      alert('Error al descargar el archivo: ' + (error.response?.data?.error || error.message));
     }
   };
 

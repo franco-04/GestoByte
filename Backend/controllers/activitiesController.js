@@ -695,13 +695,29 @@ export const reviewEvidence = async (req, res) => {
   }
 };
 
-// Agregar esta función al activitiesController.js
+
 export const uploadSignedEvidenceByCoordinator = async (req, res) => {
   try {
     const { id_evidencia } = req.params;
     const id_coordinador = req.user.id;
     const archivo = req.file;
     const { comentarios_aprobacion } = req.body;
+
+    console.log('📁 Datos recibidos:', {
+      id_evidencia,
+      id_coordinador,
+      archivo: archivo ? {
+        originalname: archivo.originalname,
+        mimetype: archivo.mimetype,
+        size: archivo.size,
+        path: archivo.path
+      } : null,
+      comentarios_aprobacion
+    });
+
+    if (!archivo) {
+      return res.status(400).json({ error: "No se recibió ningún archivo" });
+    }
 
     // Verificar que el coordinador tenga acceso
     const [access] = await pool.query(
@@ -720,33 +736,72 @@ export const uploadSignedEvidenceByCoordinator = async (req, res) => {
     }
 
     const evidencia = access[0];
-    const archivoFirmadoRuta = archivo.path;
     
-    // Actualizar evidencia con documento firmado y aprobación
-    await pool.query(
-      `UPDATE evidencias_actividad 
-       SET estado_revision = 'aprobado', 
-           comentarios_revision = ?, 
-           id_revisor = ?, 
-           fecha_revision = NOW(),
-           archivo_firmado_ruta = ?
-       WHERE id_evidencia = ?`,
-      [comentarios_aprobacion || 'Evidencia aprobada con documento firmado', id_coordinador, archivoFirmadoRuta, id_evidencia]
-    );
+    // Iniciar transacción
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      // Actualizar evidencia con documento firmado y aprobación
+      await connection.query(
+        `UPDATE evidencias_actividad 
+         SET estado_revision = 'aprobado', 
+             comentarios_revision = ?, 
+             id_revisor = ?, 
+             fecha_revision = NOW(),
+             archivo_firmado_ruta = ?
+         WHERE id_evidencia = ?`,
+        [
+          comentarios_aprobacion || 'Evidencia aprobada con documento firmado', 
+          id_coordinador, 
+          archivo.path, 
+          id_evidencia
+        ]
+      );
 
-    res.json({ 
-      success: true, 
-      message: "Documento firmado subido y evidencia aprobada correctamente"
-    });
+      // Crear notificación de aprobación (si tienes la tabla)
+      try {
+        await connection.query(
+          `INSERT INTO notificaciones_devoluciones 
+           (id_evidencia, id_estudiante, id_coordinador, tipo_notificacion, titulo, mensaje)
+           VALUES (?, ?, ?, 'aprobacion', ?, ?)`,
+          [
+            id_evidencia, 
+            evidencia.id_estudiante, 
+            id_coordinador,
+            'Evidencia Aprobada con Documento Firmado ✅',
+            'Tu evidencia ha sido aprobada. El coordinador ha subido el documento firmado.'
+          ]
+        );
+      } catch (notifError) {
+        // Si la tabla no existe, continuar sin error
+        console.log('Tabla de notificaciones no existe, continuando...');
+      }
+
+      await connection.commit();
+
+      res.json({ 
+        success: true, 
+        message: "Documento firmado subido y evidencia aprobada correctamente",
+        archivo_ruta: archivo.path,
+        archivo_nombre: archivo.originalname
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
   } catch (error) {
     console.error('Error al subir documento firmado:', error);
-    res.status(500).json({ error: "Error al subir documento firmado" });
+    res.status(500).json({ 
+      error: "Error al subir documento firmado",
+      details: error.message 
+    });
   }
 };
-
-// NUEVA FUNCIÓN: Obtener historial de devoluciones
-// Agregar estas funciones al activitiesController.js
 
 export const getEvidenceReturns = async (req, res) => {
   try {
