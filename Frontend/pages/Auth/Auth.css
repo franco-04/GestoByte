@@ -1,0 +1,633 @@
+:root {
+  --primary: #4361ee;
+  --secondary: #3a0ca3;
+  --text: #2b2d42;
+  --light-gray: #f8f9fa;
+  --border: #dee2e6;
+  --error: #ef233c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.auth-container {
+  display: flex;
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #fff;
+}
+
+.divider-line {
+  display: none;
+}
+
+.auth-image {
+  display: none;
+  background: #f5f7fa;
+}
+
+.auth-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.input-group {
+  width: 100%;
+  margin-bottom: 0.3rem;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.65rem 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: var(--light-gray);
+  transition: all 0.2s;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+  background-color: #fff;
+}
+
+.input-error {
+  border-color: var(--error) !important;
+}
+
+select.input-field {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  background-size: 0.9em;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-button:hover {
+  background: var(--secondary);
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.switch-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.switch-link:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  color: var(--error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding-left: 0.5rem;
+}
+
+/* Versión desktop */
+@media (min-width: 768px) {
+  .auth-container {
+    align-items: center;
+    justify-content: center;
+    background: #f5f7fa;
+  }
+  
+  .auth-form {
+    background: white;
+    border-radius: 0 10px 10px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    max-width: 450px;
+  }
+}
+
+/* Versión con imagen */
+@media (min-width: 992px) {
+  .auth-container {
+    background: #fff;
+  }
+
+  .divider-line {
+    display: block;
+    width: 1px;
+    background: var(--border);
+    height: 80%;
+    align-self: center;
+  }
+
+  .auth-image {
+    display: flex;
+    flex: 1;
+    max-width: 45%;
+    height: 100vh;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .auth-form {
+    flex: 1;
+    max-width: 45%;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 2rem;
+  }
+}
+
+/* Ajuste para pantallas muy grandes */
+@media (min-width: 1200px) {
+  .auth-form {
+    padding: 2rem 3rem;
+  }
+}
+.global-error {
+  background: #ffebee;
+  color: var(--error);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border-left: 4px solid var(--error);
+}
+.code-group {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem; /* Reducimos aún más el espacio */
+  margin: 1rem auto;
+  width: fit-content;
+}
+
+.code-input {
+  width: 4rem !important; /* Más ancho y con !important para forzar */
+  height: 4rem !important; /* Más alto y con !important para forzar */
+  font-size: 1.8rem !important; /* Texto más grande */
+  text-align: center;
+  border: 2px solid var(--border) !important; /* Borde más visible */
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.code-input:focus {
+  border-color: var(--primary) !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2) !important;
+}
+
+/* Ajustes para móviles */
+@media (max-width: 480px) {
+  .code-input {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    font-size: 1.6rem !important;
+  }
+}
+.global-info {
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border-left: 4px solid #1a73e8;
+}
+.input-field:focus-visible {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 2px rgba(58, 12, 163, 0.2);
+}
+
+.input-field:hover {
+  background-color: #f0f4ff;
+}
+
+/* Estilos adicionales para el sistema de primer usuario */
+.global-success {
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border-left: 4px solid #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.global-success.first-user {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border-left-color: #f59e0b;
+  font-weight: 600;
+}
+
+.input-field.input-error {
+  border-color: var(--error) !important;
+  background-color: #fef2f2 !important;
+}
+
+.input-field.input-success {
+  border-color: #16a34a !important;
+  background-color: #f0fdf4 !important;
+}
+
+/* Validación visual en tiempo real */
+.input-container.valid .input-field {
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.input-container.invalid .input-field {
+  border-color: var(--error);
+  background-color: #fef2f2;
+}
+
+/* Indicador de fortaleza de contraseña */
+.password-strength {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.password-strength.weak {
+  color: #ef4444;
+}
+
+.password-strength.medium {
+  color: #f59e0b;
+}
+
+.password-strength.strong {
+  color: #16a34a;
+}
+
+/* Animación para mensajes de éxito/error */
+@keyframes slideInDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.global-error,
+.global-success {
+  animation: slideInDown 0.3s ease;
+}
+
+/* Loading spinner para el botón */
+.auth-button .loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive improvements */
+@media (max-width: 480px) {
+  .global-success,
+  .global-error {
+    font-size: 0.8rem;
+    padding: 10px;
+  }
+  
+  .input-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Estilos adicionales para el sistema de primer usuario */
+.global-success {
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border-left: 4px solid #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.global-success.first-user {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border-left-color: #f59e0b;
+  font-weight: 600;
+}
+
+/* 🔥 MEJORAS PARA ERRORES ESPECÍFICOS */
+.global-error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+  border-left: 4px solid #dc2626;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.global-error span {
+  flex: 1;
+}
+
+/* Estados de input mejorados */
+.input-field.input-error {
+  border-color: var(--error) !important;
+  background-color: #fef2f2 !important;
+}
+
+.input-field.input-success {
+  border-color: #16a34a !important;
+  background-color: #f0fdf4 !important;
+}
+
+/* Validación visual en tiempo real */
+.input-container.valid .input-field {
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.input-container.invalid .input-field {
+  border-color: var(--error);
+  background-color: #fef2f2;
+}
+
+/* Indicador de fortaleza de contraseña */
+.password-strength {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.password-strength.weak {
+  color: #ef4444;
+}
+
+.password-strength.medium {
+  color: #f59e0b;
+}
+
+.password-strength.strong {
+  color: #16a34a;
+}
+
+/* Animación para mensajes de éxito/error */
+@keyframes slideInDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.global-error,
+.global-success {
+  animation: slideInDown 0.3s ease;
+}
+
+/* 🔥 SPINNER DE CARGA MEJORADO */
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 🔥 BOTÓN DESHABILITADO MEJORADO */
+.auth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-button:disabled:hover {
+  background: var(--primary);
+  transform: none;
+}
+
+/* 🔥 MENSAJE DE ERROR ESPECÍFICO PARA INPUTS */
+.error-message {
+  color: var(--error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 🔥 MEJORAS PARA EMAIL VALIDATION */
+.input-field:focus:invalid {
+  border-color: #f59e0b;
+  background-color: #fefbf2;
+}
+
+.input-field:valid {
+  border-color: #16a34a;
+}
+
+/* Responsive improvements */
+@media (max-width: 480px) {
+  .global-success,
+  .global-error {
+    font-size: 0.8rem;
+    padding: 10px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .input-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .loading-spinner {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* 🔥 ESTADOS HOVER MEJORADOS */
+.auth-button:hover:not(:disabled) {
+  background: var(--secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+}
+
+.auth-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* 🔥 FOCUS STATES MEJORADOS */
+.input-field:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+  background-color: #fff;
+  transform: scale(1.01);
+  transition: all 0.2s ease;
+}
+
+/* 🔥 ANIMACIONES SUAVES */
+.input-field,
+.auth-button {
+  transition: all 0.2s ease;
+}
+
+.switch-link {
+  transition: color 0.2s ease;
+}
+
+.switch-link:hover {
+  color: var(--secondary);
+}
+
+/* 🔥 MEJORAS PARA DEBUG INFO */
+.debug-info {
+  margin-top: 20px;
+  padding: 10px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #6c757d;
+  font-family: 'Courier New', monospace;
+}
+
+.debug-info strong {
+  color: #495057;
+}
+
+/* 🔥 ESTADOS DE VALIDACIÓN EN TIEMPO REAL */
+.input-field.validating {
+  border-color: #f59e0b;
+  background-color: #fefbf2;
+}
+
+.input-field.valid-email {
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.input-field.invalid-email {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
