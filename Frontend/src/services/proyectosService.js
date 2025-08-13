@@ -290,9 +290,33 @@ const proyectosService = {
     } catch (error) {
       throw errorHandler(error);
     }
+  },
+
+
+getProyectoCompleto: async (idProyecto) => {
+  try {
+    console.log(`📊 Obteniendo datos completos del proyecto ${idProyecto}`);
+    const res = await api.get(`/auth/proyectos/${idProyecto}/detalle`);
+    console.log(`✅ Datos obtenidos:`, res.data);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error al obtener detalle del proyecto:", error);
+    throw errorHandler(error);
   }
+},
 
-
+// 🔥 SI EXISTE esta función, REEMPLAZARLA o hacer que use la misma ruta:
+getProyectoCompletStats: async (idProyecto) => {
+  try {
+    console.log(`📊 [LEGACY] Redirigiendo a función unificada para proyecto ${idProyecto}`);
+    // 🔥 USAR LA MISMA RUTA que la función principal:
+    const res = await api.get(`/auth/proyectos/${idProyecto}/detalle`);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error en función legacy:", error);
+    throw errorHandler(error);
+  }
+},
 
 
 

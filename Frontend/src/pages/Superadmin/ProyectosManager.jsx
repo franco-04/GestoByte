@@ -89,19 +89,56 @@ export default function ProyectosManager() {
     }
   };
 
-  // NUEVA FUNCIÓN: Obtener detalle del proyecto
-  const fetchProyectoDetalle = async (idProyecto) => {
-    setLoading(true);
+
+// ✅ FUNCIÓN CORREGIDA (reemplazar por esta):
+const fetchProyectoDetalle = async (idProyecto) => {
+  setLoading(true);
+  try {
+    console.log(`📋 [SUPERADMIN] Cargando detalles del proyecto ${idProyecto}`);
+    
+    // 🔥 USAR EL MISMO SERVICIO que el coordinador
+    const data = await proyectosService.getProyectoCompleto(idProyecto);
+    console.log("✅ Datos del proyecto obtenidos:", data);
+    
+    setProyectoDetalle(data);
+  } catch (error) {
+    console.error("❌ Error al cargar detalle del proyecto:", error);
+    setError("Error al cargar detalles del proyecto");
+    
+    // Si falla la API, intentar construir datos básicos
     try {
-      const res = await api.get(`/auth/proyectos/${idProyecto}/detalle`);
-      setProyectoDetalle(res.data);
-    } catch (error) {
-      console.error("Error al cargar detalle del proyecto:", error);
-      setError("Error al cargar detalles del proyecto");
-    } finally {
-      setLoading(false);
+      const datosBasicos = {
+        proyecto: {
+          id_proyecto: idProyecto,
+          proyecto_nombre: proyectoSeleccionado?.nombre || "Proyecto sin nombre",
+          proyecto_descripcion: proyectoSeleccionado?.descripcion || "Sin descripción",
+          fecha_creacion: proyectoSeleccionado?.fecha_creacion,
+          programa_nombre: programaSeleccionado?.nombre || "Programa sin nombre",
+          portafolio_nombre: portafolioSeleccionado?.nombre || "Portafolio sin nombre",
+          carrera: portafolioSeleccionado?.carrera || "Sin carrera",
+          lider_nombre: "Sin asignar",
+          lider_apellido: "",
+          total_actividades: 0,
+          actividades_completadas: 0,
+          actividades_en_progreso: 0,
+          actividades_pendientes: 0,
+          actividades_vencidas: 0,
+          total_evidencias: 0,
+          evidencias_aprobadas: 0,
+          total_estudiantes: 0
+        },
+        actividades: [],
+        miembros: [],
+        reuniones: []
+      };
+      setProyectoDetalle(datosBasicos);
+    } catch (fallbackError) {
+      console.error("Error en datos de respaldo:", fallbackError);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const seleccionarPortafolio = (portafolio) => {
     setPortafolioSeleccionado(portafolio);
@@ -396,219 +433,231 @@ export default function ProyectosManager() {
           </div>
         )}
 
-        {/* Vista: Detalle del Proyecto */}
-        {vista === "detalle" && !loading && proyectoDetalle && (
-          <div className="admin-content">
-            {/* Estadísticas del proyecto */}
-            <div className="stats-grid" style={{ marginBottom: "2rem" }}>
-              <div className="stat-card primary">
-                <div className="stat-icon">👥</div>
-                <div className="stat-content">
-                  <div className="stat-number">{proyectoDetalle.proyecto.total_miembros}</div>
-                  <div className="stat-label">Miembros</div>
-                </div>
-              </div>
-              <div className="stat-card info">
-                <div className="stat-icon">📋</div>
-                <div className="stat-content">
-                  <div className="stat-number">{proyectoDetalle.proyecto.total_actividades}</div>
-                  <div className="stat-label">Actividades</div>
-                </div>
-              </div>
-              <div className="stat-card success">
-                <div className="stat-icon">✅</div>
-                <div className="stat-content">
-                  <div className="stat-number">{proyectoDetalle.proyecto.actividades_completadas}</div>
-                  <div className="stat-label">Completadas</div>
-                </div>
-              </div>
-              <div className="stat-card warning">
-                <div className="stat-icon">📄</div>
-                <div className="stat-content">
-                  <div className="stat-number">{proyectoDetalle.proyecto.evidencias_aprobadas}/{proyectoDetalle.proyecto.total_evidencias}</div>
-                  <div className="stat-label">Evidencias</div>
-                </div>
-              </div>
+       {/* Vista: Detalle del Proyecto - CORREGIDA */}
+{vista === "detalle" && !loading && proyectoDetalle && (
+  <div className="admin-content">
+    {/* Estadísticas del proyecto */}
+    <div className="stats-grid" style={{ marginBottom: "2rem" }}>
+      <div className="stat-card primary">
+        <div className="stat-icon">👥</div>
+        <div className="stat-content">
+          <div className="stat-number">
+            {proyectoDetalle.proyecto?.total_estudiantes || 0}
+          </div>
+          <div className="stat-label">Miembros</div>
+        </div>
+      </div>
+      <div className="stat-card info">
+        <div className="stat-icon">📋</div>
+        <div className="stat-content">
+          <div className="stat-number">
+            {proyectoDetalle.proyecto?.total_actividades || 0}
+          </div>
+          <div className="stat-label">Actividades</div>
+        </div>
+      </div>
+      <div className="stat-card success">
+        <div className="stat-icon">✅</div>
+        <div className="stat-content">
+          <div className="stat-number">
+            {proyectoDetalle.proyecto?.actividades_completadas || 0}
+          </div>
+          <div className="stat-label">Completadas</div>
+        </div>
+      </div>
+      <div className="stat-card warning">
+        <div className="stat-icon">📄</div>
+        <div className="stat-content">
+          <div className="stat-number">
+            {proyectoDetalle.proyecto?.evidencias_aprobadas || 0}/
+            {proyectoDetalle.proyecto?.total_evidencias || 0}
+          </div>
+          <div className="stat-label">Evidencias</div>
+        </div>
+      </div>
+    </div>
+
+    <div className="dashboard-grid">
+      {/* Información del proyecto */}
+      <div className="admin-card">
+        <div className="card-header">
+          <h3>Información del Proyecto</h3>
+          <button 
+            className="btn btn-primary"
+            onClick={() => verKanban(proyectoSeleccionado)}
+          >
+            Ver Tablero Kanban
+          </button>
+        </div>
+        <div className="card-content">
+          <div className="project-info">
+            <div className="info-row">
+              <strong>Descripción:</strong>
+              <p>{proyectoDetalle.proyecto?.proyecto_descripcion || proyectoSeleccionado?.descripcion || "Sin descripción"}</p>
             </div>
-
-            <div className="dashboard-grid">
-              {/* Información del proyecto */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>Información del Proyecto</h3>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => verKanban(proyectoSeleccionado)}
-                  >
-                    Ver Tablero Kanban
-                  </button>
-                </div>
-                <div className="card-content">
-                  <div className="project-info">
-                    <div className="info-row">
-                      <strong>Descripción:</strong>
-                      <p>{proyectoDetalle.proyecto.descripcion}</p>
-                    </div>
-                    <div className="info-row">
-                      <strong>Programa:</strong>
-                      <span>{proyectoDetalle.proyecto.programa_nombre}</span>
-                    </div>
-                    <div className="info-row">
-                      <strong>Portafolio:</strong>
-                      <span>{proyectoDetalle.proyecto.portafolio_nombre}</span>
-                    </div>
-                    <div className="info-row">
-                      <strong>Carrera:</strong>
-                      <span>{proyectoDetalle.proyecto.carrera}</span>
-                    </div>
-                    <div className="info-row">
-                      <strong>Líder del proyecto:</strong>
-                      <span>
-                        {proyectoDetalle.proyecto.lider_nombre} {proyectoDetalle.proyecto.lider_apellido}
-                        <br />
-                        <small>{proyectoDetalle.proyecto.lider_email}</small>
-                      </span>
-                    </div>
-                    <div className="info-row">
-                      <strong>Creado:</strong>
-                      <span>{formatDate(proyectoDetalle.proyecto.fecha_creacion)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Miembros del equipo */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>Miembros del Equipo ({proyectoDetalle.miembros.length})</h3>
-                </div>
-                <div className="card-content">
-                  <div className="members-list">
-                    {proyectoDetalle.miembros.map((miembro) => (
-                      <div key={miembro.id_usuario} className="member-item">
-                        <div className="member-info">
-                          <div className="member-name">
-                            {getRoleIcon(miembro.rol)}
-                            <strong>{miembro.nombre} {miembro.apellido}</strong>
-                            {miembro.rol === 'lider' && (
-                              <span className="role-badge leader">Líder</span>
-                            )}
-                          </div>
-                          <div className="member-details">
-                            <small>{miembro.email}</small>
-                          </div>
-                          <div className="member-stats">
-                            <span className="stat">
-                              {miembro.actividades_completadas}/{miembro.actividades_asignadas} actividades
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actividades recientes */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>Actividades Recientes</h3>
-                  <button 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => verKanban(proyectoSeleccionado)}
-                  >
-                    Ver Todas
-                  </button>
-                </div>
-                <div className="card-content">
-                  {proyectoDetalle.actividades_recientes.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No hay actividades registradas</p>
-                    </div>
-                  ) : (
-                    <div className="activities-list">
-                      {proyectoDetalle.actividades_recientes.map((actividad) => (
-                        <div key={actividad.id_actividad} className="activity-item">
-                          <div className="activity-info">
-                            <div className="activity-header">
-                              <h4>{actividad.titulo}</h4>
-                              <div className="activity-badges">
-                                <span 
-                                  className="status-badge"
-                                  style={{ backgroundColor: getEstadoColor(actividad.estado) }}
-                                >
-                                  {actividad.estado}
-                                </span>
-                                <span 
-                                  className="priority-badge"
-                                  style={{ backgroundColor: getPrioridadColor(actividad.prioridad) }}
-                                >
-                                  {actividad.prioridad}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="activity-details">
-                              <div>
-                                <strong>Asignados:</strong> {actividad.asignados || "Sin asignar"}
-                              </div>
-                              {actividad.fecha_limite && (
-                                <div>
-                                  <strong>Fecha límite:</strong> {formatDate(actividad.fecha_limite)}
-                                </div>
-                              )}
-                              <div>
-                                <strong>Creado por:</strong> {actividad.creador_nombre} {actividad.creador_apellido}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Reuniones del proyecto */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>Reuniones Recientes</h3>
-                </div>
-                <div className="card-content">
-                  {proyectoDetalle.reuniones.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No hay reuniones programadas</p>
-                    </div>
-                  ) : (
-                    <div className="meetings-list">
-                      {proyectoDetalle.reuniones.map((reunion) => (
-                        <div key={reunion.id_reunion} className="meeting-item">
-                          <div className="meeting-info">
-                            <h4>{reunion.titulo}</h4>
-                            <div className="meeting-details">
-                              <div>
-                                <AiOutlineCalendar />
-                                <span>{formatDate(reunion.fecha_reunion)}</span>
-                              </div>
-                              <div>
-                                <AiOutlineTeam />
-                                <span>{reunion.confirmados}/{reunion.total_participantes} confirmados</span>
-                              </div>
-                              <div>
-                                <AiOutlineFlag />
-                                <span className={`status-${reunion.estado}`}>{reunion.estado}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="info-row">
+              <strong>Programa:</strong>
+              <span>{proyectoDetalle.proyecto?.programa_nombre || programaSeleccionado?.nombre || "Sin programa"}</span>
+            </div>
+            <div className="info-row">
+              <strong>Portafolio:</strong>
+              <span>{proyectoDetalle.proyecto?.portafolio_nombre || portafolioSeleccionado?.nombre || "Sin portafolio"}</span>
+            </div>
+            <div className="info-row">
+              <strong>Carrera:</strong>
+              <span>{proyectoDetalle.proyecto?.carrera || portafolioSeleccionado?.carrera || "Sin carrera"}</span>
+            </div>
+            <div className="info-row">
+              <strong>Líder del proyecto:</strong>
+              <span>
+                {proyectoDetalle.proyecto?.lider_nombre || "Sin asignar"} {proyectoDetalle.proyecto?.lider_apellido || ""}
+                {proyectoDetalle.proyecto?.lider_email && (
+                  <>
+                    <br />
+                    <small>{proyectoDetalle.proyecto.lider_email}</small>
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="info-row">
+              <strong>Creado:</strong>
+              <span>{formatDate(proyectoDetalle.proyecto?.fecha_creacion)}</span>
             </div>
           </div>
-        )}
+        </div>
+      </div>
 
+      {/* Miembros del equipo */}
+      {proyectoDetalle.miembros && proyectoDetalle.miembros.length > 0 && (
+        <div className="admin-card">
+          <div className="card-header">
+            <h3>Miembros del Equipo ({proyectoDetalle.miembros.length})</h3>
+          </div>
+          <div className="card-content">
+            <div className="members-list">
+              {proyectoDetalle.miembros.map((miembro) => (
+                <div key={miembro.id_usuario} className="member-item">
+                  <div className="member-info">
+                    <div className="member-name">
+                      {getRoleIcon(miembro.rol)}
+                      <strong>{miembro.nombre} {miembro.apellido}</strong>
+                      {miembro.rol === 'lider' && (
+                        <span className="role-badge leader">Líder</span>
+                      )}
+                    </div>
+                    <div className="member-details">
+                      <small>{miembro.email}</small>
+                    </div>
+                    <div className="member-stats">
+                      <span className="stat">
+                        {miembro.actividades_completadas || 0}/{miembro.actividades_asignadas || 0} actividades
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actividades recientes */}
+      <div className="admin-card">
+        <div className="card-header">
+          <h3>Actividades Recientes</h3>
+          <button 
+            className="btn btn-secondary btn-sm"
+            onClick={() => verKanban(proyectoSeleccionado)}
+          >
+            Ver Todas
+          </button>
+        </div>
+        <div className="card-content">
+          {!proyectoDetalle.actividades || proyectoDetalle.actividades.length === 0 ? (
+            <div className="empty-state">
+              <p>No hay actividades registradas</p>
+            </div>
+          ) : (
+            <div className="activities-list">
+              {proyectoDetalle.actividades.slice(0, 5).map((actividad) => (
+                <div key={actividad.id_actividad} className="activity-item">
+                  <div className="activity-info">
+                    <div className="activity-header">
+                      <h4>{actividad.titulo}</h4>
+                      <div className="activity-badges">
+                        <span 
+                          className="status-badge"
+                          style={{ backgroundColor: getEstadoColor(actividad.estado) }}
+                        >
+                          {actividad.estado}
+                        </span>
+                        {actividad.prioridad && (
+                          <span 
+                            className="priority-badge"
+                            style={{ backgroundColor: getPrioridadColor(actividad.prioridad) }}
+                          >
+                            {actividad.prioridad}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="activity-details">
+                      <div>
+                        <strong>Asignados:</strong> {actividad.asignados || "Sin asignar"}
+                      </div>
+                      {actividad.fecha_limite && (
+                        <div>
+                          <strong>Fecha límite:</strong> {formatDate(actividad.fecha_limite)}
+                        </div>
+                      )}
+                      <div>
+                        <strong>Creado por:</strong> {actividad.creador_nombre} {actividad.creador_apellido}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Reuniones del proyecto */}
+      {proyectoDetalle.reuniones && proyectoDetalle.reuniones.length > 0 && (
+        <div className="admin-card">
+          <div className="card-header">
+            <h3>Reuniones Recientes</h3>
+          </div>
+          <div className="card-content">
+            <div className="meetings-list">
+              {proyectoDetalle.reuniones.map((reunion) => (
+                <div key={reunion.id_reunion} className="meeting-item">
+                  <div className="meeting-info">
+                    <h4>{reunion.titulo}</h4>
+                    <div className="meeting-details">
+                      <div>
+                        <AiOutlineCalendar />
+                        <span>{formatDate(reunion.fecha_reunion)}</span>
+                      </div>
+                      <div>
+                        <AiOutlineTeam />
+                        <span>{reunion.confirmados || 0}/{reunion.total_participantes || 0} confirmados</span>
+                      </div>
+                      <div>
+                        <AiOutlineFlag />
+                        <span className={`status-${reunion.estado}`}>{reunion.estado}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+)}
         {/* Vista: Tablero Kanban */}
         {vista === "kanban" && proyectoSeleccionado && (
           <div className="kanban-container">

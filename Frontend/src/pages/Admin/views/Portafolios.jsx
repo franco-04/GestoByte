@@ -10,6 +10,7 @@ import {
   AiOutlineProject,
   AiOutlineBarChart,
   AiOutlinePlus,
+  AiOutlineUser,
 } from "react-icons/ai";
 import proyectosService from "../../../services/proyectosService";
 import KanbanBoard from "../../../components/KanbanBoard";
@@ -64,6 +65,7 @@ export default function Portafolios() {
     proyectoSeleccionado,
   ]);
 
+  // 🔥 CORREGIDO: Usar portafolios asignados para coordinadores
   const fetchPortafolios = async () => {
     setLoading(true);
     try {
@@ -111,75 +113,51 @@ export default function Portafolios() {
     }
   };
 
+  // 🔥 FUNCIÓN COMPLETAMENTE CORREGIDA: Usar datos reales del backend
   const fetchProyectoDetalle = async (idProyecto) => {
     setLoading(true);
     try {
-      // Simular respuesta del detalle del proyecto hasta que esté implementada la API
-      const detalleSimulado = {
-        proyecto: {
-          id_proyecto: idProyecto,
-          nombre: proyectoSeleccionado.nombre,
-          descripcion: proyectoSeleccionado.descripcion,
-          fecha_creacion: proyectoSeleccionado.fecha_creacion,
-          programa_nombre: programaSeleccionado.nombre,
-          portafolio_nombre: portafolioSeleccionado.nombre,
-          carrera: "Ingeniería en Sistemas",
-          lider_nombre: "Juan",
-          lider_apellido: "Pérez",
-          lider_email: "juan.perez@email.com",
-          total_miembros: 4,
-          total_actividades: 12,
-          actividades_completadas: 8,
-          total_evidencias: 15,
-          evidencias_aprobadas: 10,
-        },
-        miembros: [
-          {
-            id_usuario: 1,
-            nombre: "Juan",
-            apellido: "Pérez",
-            email: "juan.perez@email.com",
-            rol: "lider",
-            actividades_asignadas: 5,
-            actividades_completadas: 3,
-          },
-          {
-            id_usuario: 2,
-            nombre: "María",
-            apellido: "González",
-            email: "maria.gonzalez@email.com",
-            rol: "miembro",
-            actividades_asignadas: 4,
-            actividades_completadas: 3,
-          },
-        ],
-        actividades_recientes: [
-          {
-            id_actividad: 1,
-            titulo: "Diseñar interfaz de usuario",
-            estado: "en_progreso",
-            prioridad: "alta",
-            fecha_limite: "2024-12-15",
-            asignados: "Juan Pérez",
-            creador_nombre: "María",
-            creador_apellido: "González",
-          },
-        ],
-        reuniones: [
-          {
-            id_reunion: 1,
-            titulo: "Revisión semanal",
-            fecha_reunion: "2024-12-10",
-            estado: "programada",
-            total_participantes: 4,
-            confirmados: 3,
-          },
-        ],
-      };
-      setProyectoDetalle(detalleSimulado);
+      console.log(`📋 Cargando detalles del proyecto ${idProyecto}`);
+      
+      // Usar la función que obtiene datos reales del backend
+      const data = await proyectosService.getProyectoCompleto(idProyecto);
+      console.log("✅ Datos del proyecto obtenidos:", data);
+      
+      setProyectoDetalle(data);
     } catch (error) {
-      console.error("Error al cargar detalle del proyecto:", error);
+      console.error("❌ Error al cargar detalle del proyecto:", error);
       setError("Error al cargar detalles del proyecto");
+      
+      // Si falla la API, intentar construir datos básicos
+      try {
+        const datosBasicos = {
+          proyecto: {
+            id_proyecto: idProyecto,
+            proyecto_nombre: proyectoSeleccionado?.nombre || "Proyecto sin nombre",
+            proyecto_descripcion: proyectoSeleccionado?.descripcion || "Sin descripción",
+            fecha_creacion: proyectoSeleccionado?.fecha_creacion,
+            programa_nombre: programaSeleccionado?.nombre || "Programa sin nombre",
+            portafolio_nombre: portafolioSeleccionado?.nombre || "Portafolio sin nombre",
+            carrera: portafolioSeleccionado?.carrera || "Sin carrera",
+            lider_nombre: "Sin asignar",
+            lider_apellido: "",
+            total_actividades: 0,
+            actividades_completadas: 0,
+            actividades_en_progreso: 0,
+            actividades_pendientes: 0,
+            actividades_vencidas: 0,
+            total_evidencias: 0,
+            evidencias_aprobadas: 0,
+            total_estudiantes: 0
+          },
+          actividades: [],
+          miembros: [],
+          reuniones: []
+        };
+        setProyectoDetalle(datosBasicos);
+      } catch (fallbackError) {
+        console.error("Error en datos de respaldo:", fallbackError);
+      }
     } finally {
       setLoading(false);
     }
@@ -286,6 +264,11 @@ export default function Portafolios() {
     return new Date(dateString).toLocaleDateString("es-ES");
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "No definida";
+    return new Date(dateString).toLocaleString("es-ES");
+  };
+
   const clearMessages = () => {
     setError("");
     setSuccess("");
@@ -295,7 +278,7 @@ export default function Portafolios() {
     return rol === "lider" ? (
       <AiOutlineTrophy style={{ color: "#f59e0b" }} />
     ) : (
-      <AiOutlineTeam style={{ color: "#3b82f6" }} />
+      <AiOutlineUser style={{ color: "#3b82f6" }} />
     );
   };
 
@@ -392,12 +375,12 @@ export default function Portafolios() {
         {vista === "portafolios" && !loading && (
           <div className="admin-card">
             <div className="card-header">
-              <h3>Mis Portafolios</h3>
+              <h3>Mis Portafolios Asignados</h3>
             </div>
             {portafolios.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📚</div>
-                <h3>No tienes portafolios</h3>
+                <h3>No tienes portafolios asignados</h3>
                 <p>Contacta al administrador para que te asigne portafolios.</p>
               </div>
             ) : (
@@ -544,7 +527,7 @@ export default function Portafolios() {
           </div>
         )}
 
-        {/* Vista: Detalle del Proyecto */}
+        {/* 🔥 VISTA COMPLETAMENTE CORREGIDA: Detalle del Proyecto con datos reales */}
         {vista === "detalle" && !loading && proyectoDetalle && (
           <div className="admin-content">
             {/* Estadísticas del proyecto */}
@@ -553,7 +536,7 @@ export default function Portafolios() {
                 <div className="stat-icon">👥</div>
                 <div className="stat-content">
                   <div className="stat-number">
-                    {proyectoDetalle.proyecto.total_miembros}
+                    {proyectoDetalle.proyecto?.total_estudiantes || 0}
                   </div>
                   <div className="stat-label">Miembros</div>
                 </div>
@@ -562,7 +545,7 @@ export default function Portafolios() {
                 <div className="stat-icon">📋</div>
                 <div className="stat-content">
                   <div className="stat-number">
-                    {proyectoDetalle.proyecto.total_actividades}
+                    {proyectoDetalle.proyecto?.total_actividades || 0}
                   </div>
                   <div className="stat-label">Actividades</div>
                 </div>
@@ -571,7 +554,7 @@ export default function Portafolios() {
                 <div className="stat-icon">✅</div>
                 <div className="stat-content">
                   <div className="stat-number">
-                    {proyectoDetalle.proyecto.actividades_completadas}
+                    {proyectoDetalle.proyecto?.actividades_completadas || 0}
                   </div>
                   <div className="stat-label">Completadas</div>
                 </div>
@@ -580,8 +563,8 @@ export default function Portafolios() {
                 <div className="stat-icon">📄</div>
                 <div className="stat-content">
                   <div className="stat-number">
-                    {proyectoDetalle.proyecto.evidencias_aprobadas}/
-                    {proyectoDetalle.proyecto.total_evidencias}
+                    {proyectoDetalle.proyecto?.evidencias_aprobadas || 0}/
+                    {proyectoDetalle.proyecto?.total_evidencias || 0}
                   </div>
                   <div className="stat-label">Evidencias</div>
                 </div>
@@ -604,75 +587,90 @@ export default function Portafolios() {
                   <div className="project-info">
                     <div className="info-row">
                       <strong>Descripción:</strong>
-                      <p>{proyectoDetalle.proyecto.descripcion}</p>
+                      <p>{proyectoDetalle.proyecto?.proyecto_descripcion || proyectoSeleccionado?.descripcion || "Sin descripción"}</p>
                     </div>
                     <div className="info-row">
                       <strong>Programa:</strong>
-                      <span>{proyectoDetalle.proyecto.programa_nombre}</span>
+                      <span>{proyectoDetalle.proyecto?.programa_nombre || programaSeleccionado?.nombre || "Sin programa"}</span>
                     </div>
                     <div className="info-row">
                       <strong>Portafolio:</strong>
-                      <span>{proyectoDetalle.proyecto.portafolio_nombre}</span>
+                      <span>{proyectoDetalle.proyecto?.portafolio_nombre || portafolioSeleccionado?.nombre || "Sin portafolio"}</span>
                     </div>
                     <div className="info-row">
                       <strong>Carrera:</strong>
-                      <span>{proyectoDetalle.proyecto.carrera}</span>
+                      <span>{proyectoDetalle.proyecto?.carrera || portafolioSeleccionado?.carrera || "Sin carrera"}</span>
                     </div>
                     <div className="info-row">
                       <strong>Líder del proyecto:</strong>
                       <span>
-                        {proyectoDetalle.proyecto.lider_nombre}{" "}
-                        {proyectoDetalle.proyecto.lider_apellido}
-                        <br />
-                        <small>{proyectoDetalle.proyecto.lider_email}</small>
+                        {proyectoDetalle.proyecto?.lider_nombre || "Sin asignar"} {proyectoDetalle.proyecto?.lider_apellido || ""}
+                        {proyectoDetalle.proyecto?.lider_email && (
+                          <>
+                            <br />
+                            <small>{proyectoDetalle.proyecto.lider_email}</small>
+                          </>
+                        )}
                       </span>
                     </div>
                     <div className="info-row">
                       <strong>Creado:</strong>
-                      <span>
-                        {formatDate(proyectoDetalle.proyecto.fecha_creacion)}
-                      </span>
+                      <span>{formatDate(proyectoDetalle.proyecto?.fecha_creacion)}</span>
                     </div>
+                    {proyectoDetalle.proyecto?.fecha_limite && (
+                      <div className="info-row">
+                        <strong>Fecha límite:</strong>
+                        <span>{formatDate(proyectoDetalle.proyecto.fecha_limite)}</span>
+                      </div>
+                    )}
+                    {proyectoDetalle.proyecto?.prioridad && (
+                      <div className="info-row">
+                        <strong>Prioridad:</strong>
+                        <span style={{ color: getPrioridadColor(proyectoDetalle.proyecto.prioridad) }}>
+                          {proyectoDetalle.proyecto.prioridad.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Miembros del equipo */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>
-                    Miembros del Equipo ({proyectoDetalle.miembros.length})
-                  </h3>
-                </div>
-                <div className="card-content">
-                  <div className="members-list">
-                    {proyectoDetalle.miembros.map((miembro) => (
-                      <div key={miembro.id_usuario} className="member-item">
-                        <div className="member-info">
-                          <div className="member-name">
-                            {getRoleIcon(miembro.rol)}
-                            <strong>
-                              {miembro.nombre} {miembro.apellido}
-                            </strong>
-                            {miembro.rol === "lider" && (
-                              <span className="role-badge leader">Líder</span>
-                            )}
-                          </div>
-                          <div className="member-details">
-                            <small>{miembro.email}</small>
-                          </div>
-                          <div className="member-stats">
-                            <span className="stat">
-                              {miembro.actividades_completadas}/
-                              {miembro.actividades_asignadas} actividades
-                            </span>
+              {proyectoDetalle.miembros && proyectoDetalle.miembros.length > 0 && (
+                <div className="admin-card">
+                  <div className="card-header">
+                    <h3>Miembros del Equipo ({proyectoDetalle.miembros.length})</h3>
+                  </div>
+                  <div className="card-content">
+                    <div className="members-list">
+                      {proyectoDetalle.miembros.map((miembro) => (
+                        <div key={miembro.id_usuario} className="member-item">
+                          <div className="member-info">
+                            <div className="member-name">
+                              {getRoleIcon(miembro.rol)}
+                              <strong>
+                                {miembro.nombre} {miembro.apellido}
+                              </strong>
+                              {miembro.rol === "lider" && (
+                                <span className="role-badge leader">Líder</span>
+                              )}
+                            </div>
+                            <div className="member-details">
+                              <small>{miembro.email}</small>
+                            </div>
+                            <div className="member-stats">
+                              <span className="stat">
+                                {miembro.actividades_completadas || 0}/
+                                {miembro.actividades_asignadas || 0} actividades
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Actividades recientes */}
               <div className="admin-card">
@@ -686,81 +684,153 @@ export default function Portafolios() {
                   </button>
                 </div>
                 <div className="card-content">
-                  {proyectoDetalle.actividades_recientes.length === 0 ? (
+                  {!proyectoDetalle.actividades || proyectoDetalle.actividades.length === 0 ? (
                     <div className="empty-state">
                       <p>No hay actividades registradas</p>
                     </div>
                   ) : (
                     <div className="activities-list">
-                      {proyectoDetalle.actividades_recientes.map(
-                        (actividad) => (
-                          <div
-                            key={actividad.id_actividad}
-                            className="activity-item"
-                          >
-                            <div className="activity-info">
-                              <div className="activity-header">
-                                <h4>{actividad.titulo}</h4>
-                                <div className="activity-badges">
-                                  <span
-                                    className="status-badge"
-                                    style={{
-                                      backgroundColor: getEstadoColor(
-                                        actividad.estado
-                                      ),
-                                    }}
-                                  >
-                                    {actividad.estado}
-                                  </span>
+                      {proyectoDetalle.actividades.slice(0, 5).map((actividad) => (
+                        <div key={actividad.id_actividad} className="activity-item">
+                          <div className="activity-info">
+                            <div className="activity-header">
+                              <h4>{actividad.titulo}</h4>
+                              <div className="activity-badges">
+                                <span
+                                  className="status-badge"
+                                  style={{
+                                    backgroundColor: getEstadoColor(actividad.estado),
+                                    color: 'white',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.8em'
+                                  }}
+                                >
+                                  {actividad.estado}
+                                </span>
+                                {actividad.prioridad && (
                                   <span
                                     className="priority-badge"
                                     style={{
-                                      backgroundColor: getPrioridadColor(
-                                        actividad.prioridad
-                                      ),
+                                      backgroundColor: getPrioridadColor(actividad.prioridad),
+                                      color: 'white',
+                                      padding: '2px 8px',
+                                      borderRadius: '12px',
+                                      fontSize: '0.8em'
                                     }}
                                   >
                                     {actividad.prioridad}
                                   </span>
-                                </div>
-                              </div>
-                              <div className="activity-details">
-                                <div>
-                                  <strong>Asignados:</strong>{" "}
-                                  {actividad.asignados || "Sin asignar"}
-                                </div>
-                                {actividad.fecha_limite && (
-                                  <div>
-                                    <strong>Fecha límite:</strong>{" "}
-                                    {formatDate(actividad.fecha_limite)}
-                                  </div>
                                 )}
-                                <div>
-                                  <strong>Creado por:</strong>{" "}
-                                  {actividad.creador_nombre}{" "}
-                                  {actividad.creador_apellido}
-                                </div>
                               </div>
                             </div>
+                            <div className="activity-details">
+                              {actividad.descripcion && (
+                                <div>
+                                  <strong>Descripción:</strong> {actividad.descripcion}
+                                </div>
+                              )}
+                            {actividad.asignados && (
+  <div>
+    <strong>Asignados:</strong> {
+      Array.isArray(actividad.asignados) 
+        ? actividad.asignados.join(', ')
+        : actividad.asignados
+    }
+  </div>
+)}
+                              {actividad.fecha_limite && (
+                                <div>
+                                  <strong>Fecha límite:</strong> {formatDate(actividad.fecha_limite)}
+                                </div>
+                              )}
+                              <div>
+                                <strong>Creado:</strong> {formatDateTime(actividad.fecha_creacion)}
+                              </div>
+                              {actividad.total_evidencias > 0 && (
+                                <div>
+                                  <strong>Evidencias:</strong> {actividad.evidencias_aprobadas || 0}/{actividad.total_evidencias}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )
-                      )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Estadísticas adicionales */}
+              <div className="admin-card">
+                <div className="card-header">
+                  <h3>Resumen del Proyecto</h3>
+                </div>
+                <div className="card-content">
+                  <div className="metrics-grid">
+                    <div className="metric-item">
+                      <div className="metric-value" style={{ color: '#3b82f6' }}>
+                        {proyectoDetalle.proyecto?.total_actividades || 0}
+                      </div>
+                      <div className="metric-label">Total Actividades</div>
+                    </div>
+                    <div className="metric-item">
+                      <div className="metric-value" style={{ color: '#10b981' }}>
+                        {proyectoDetalle.proyecto?.actividades_completadas || 0}
+                      </div>
+                      <div className="metric-label">Completadas</div>
+                    </div>
+                    <div className="metric-item">
+                      <div className="metric-value" style={{ color: '#f59e0b' }}>
+                        {proyectoDetalle.proyecto?.actividades_en_progreso || 0}
+                      </div>
+                      <div className="metric-label">En Progreso</div>
+                    </div>
+                    <div className="metric-item">
+                      <div className="metric-value" style={{ color: '#ef4444' }}>
+                        {proyectoDetalle.proyecto?.actividades_vencidas || 0}
+                      </div>
+                      <div className="metric-label">Vencidas</div>
+                    </div>
+                  </div>
+                  
+                  {/* Porcentaje de completitud */}
+                  {proyectoDetalle.proyecto?.total_actividades > 0 && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <div className="metric-label">Progreso del Proyecto</div>
+                      <div className="progress-bar" style={{ 
+                        width: '100%', 
+                        height: '20px', 
+                        backgroundColor: '#e5e7eb', 
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                        marginTop: '8px'
+                      }}>
+                        <div 
+                          className="progress-fill" 
+                          style={{ 
+                            width: `${((proyectoDetalle.proyecto.actividades_completadas / proyectoDetalle.proyecto.total_actividades) * 100)}%`,
+                            height: '100%',
+                            backgroundColor: '#10b981',
+                            transition: 'width 0.3s ease'
+                          }}
+                        ></div>
+                      </div>
+                      <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9em', color: '#6b7280' }}>
+                        {Math.round((proyectoDetalle.proyecto.actividades_completadas / proyectoDetalle.proyecto.total_actividades) * 100)}% Completado
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Reuniones del proyecto */}
-              <div className="admin-card">
-                <div className="card-header">
-                  <h3>Reuniones Recientes</h3>
-                </div>
-                <div className="card-content">
-                  {proyectoDetalle.reuniones.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No hay reuniones programadas</p>
-                    </div>
-                  ) : (
+              {proyectoDetalle.reuniones && proyectoDetalle.reuniones.length > 0 && (
+                <div className="admin-card">
+                  <div className="card-header">
+                    <h3>Reuniones Recientes</h3>
+                  </div>
+                  <div className="card-content">
                     <div className="meetings-list">
                       {proyectoDetalle.reuniones.map((reunion) => (
                         <div key={reunion.id_reunion} className="meeting-item">
@@ -774,8 +844,7 @@ export default function Portafolios() {
                               <div>
                                 <AiOutlineTeam />
                                 <span>
-                                  {reunion.confirmados}/
-                                  {reunion.total_participantes} confirmados
+                                  {reunion.confirmados || 0}/{reunion.total_participantes || 0} confirmados
                                 </span>
                               </div>
                               <div>
@@ -789,9 +858,9 @@ export default function Portafolios() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
