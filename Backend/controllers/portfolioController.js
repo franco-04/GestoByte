@@ -941,3 +941,202 @@ export const getEstadisticasGlobalesReales = async (req, res) => {
     res.status(500).json({ error: "Error al obtener estadísticas globales" });
   }
 };
+
+export const getProyectoDetalleCompleto = async (req, res) => {
+  try {
+    const { id_proyecto } = req.params;
+    const id_coordinador = req.user.id;
+    const rol_usuario = req.user.rol;
+
+    console.log(`🔍 Verificando acceso al proyecto ${id_proyecto} para usuario ${id_coordinador} (${rol_usuario})`);
+
+    // 🔥 CONSULTA CORREGIDA basada en tus datos
+    const [acceso] = await pool.query(
+      `SELECT DISTINCT 
+              p.id_proyecto,
+              'acceso_concedido' as acceso,
+              CASE 
+                WHEN port.id_coordinador = ? THEN 'creador_portafolio'
+                WHEN pp.id_asesores = ? THEN 'asesor_asignado'  
+                WHEN ? = 'Administrador' THEN 'superadministrador'
+                ELSE 'sin_acceso'
+              END as tipo_acceso,
+              port.nombre as portafolio_nombre,
+              port.id_coordinador as coordinador_original,
+              pp.id_asesores as asesor_asignado
+       FROM proyectos p
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       LEFT JOIN portafolio_profesores pp ON port.id_portafolio = pp.id_portafolio
+       WHERE p.id_proyecto = ? 
+       AND p.activo = 1
+       AND (
+         -- Es el coordinador original del portafolio
+         port.id_coordinador = ? 
+         OR 
+         -- Es un asesor asignado al portafolio
+         pp.id_asesores = ?
+         OR 
+         -- Es superadministrador
+         ? = 'Administrador'
+       )`,
+      [
+        id_coordinador, id_coordinador, rol_usuario, // Para el CASE
+        id_proyecto, // Para el WHERE
+        id_coordinador, id_coordinador, rol_usuario // Para las condiciones OR
+      ]
+    );
+
+    console.log(`📊 Resultado de verificación de acceso:`, {
+      tiene_acceso: acceso.length > 0,
+      detalles: acceso.length > 0 ? acceso[0] : 'Sin acceso'
+    });
+
+    if (acceso.length === 0) {
+      console.log(`❌ Acceso denegado al proyecto ${id_proyecto} para usuario ${id_coordinador}`);
+      return res.status(403).json({ 
+        error: "No tienes acceso a este proyecto",
+        debug_info: {
+          proyecto_id: id_proyecto,
+          usuario_id: id_coordinador,
+          rol: rol_usuario
+        }
+      });
+    }
+
+    console.log(`✅ Acceso concedido como: ${acceso[0].tipo_acceso}`);
+
+    // Obtener información completa del proyecto
+    const [proyectoInfo] = await pool.query(
+      `SELECT 
+        p.id_proyecto,
+        p.nombre as proyecto_nombre,
+        p.descripcion as proyecto_descripcion,
+        p.fecha_creacion,
+        p.fecha_limite,
+        p.prioridad,
+        prog.nombre as programa_nombre,
+        port.nombre as portafolio_nombre,
+        port.carrera,
+        u_lider.nombre as lider_nombre,
+        u_lider.apellido as lider_apellido,
+        u_lider.email as lider_email,
+        
+        -- Estadísticas de actividades
+        COUNT(DISTINCT ap.id_actividad) as total_actividades,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'completado' THEN ap.id_actividad END) as actividades_completadas,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'en_progreso' THEN ap.id_actividad END) as actividades_en_progreso,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'revision' THEN ap.id_actividad END) as actividades_en_revision,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'pendiente' THEN ap.id_actividad END) as actividades_pendientes,
+        COUNT(DISTINCT CASE WHEN ap.fecha_limite < CURDATE() AND ap.estado != 'completado' THEN ap.id_actividad END) as actividades_vencidas,
+        
+        -- Estadísticas de evidencias
+        COUNT(DISTINCT ea.id_evidencia) as total_evidencias_actividades,
+        COUNT(DISTINCT ep.id_evidencia) as total_evidencias_portafolio,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'aprobado' THEN ea.id_evidencia END) as evidencias_actividades_aprobadas,
+        COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'aprobado' THEN ep.id_evidencia END) as evidencias_portafolio_aprobadas,
+        
+        -- Total de evidencias
+        (COUNT(DISTINCT ea.id_evidencia) + COUNT(DISTINCT ep.id_evidencia)) as total_evidencias,
+        (COUNT(DISTINCT CASE WHEN ea.estado_revision = 'aprobado' THEN ea.id_evidencia END) + 
+         COUNT(DISTINCT CASE WHEN ep.estado_validacion = 'aprobado' THEN ep.id_evidencia END)) as evidencias_aprobadas,
+        
+        -- Participantes
+        COUNT(DISTINCT pe.id_estudiante) as total_estudiantes
+        
+       FROM proyectos p
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       INNER JOIN usuarios u_lider ON p.id_lider = u_lider.id_usuario
+       LEFT JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
+       LEFT JOIN actividades_proyecto ap ON p.id_proyecto = ap.id_proyecto AND ap.activo = 1
+       LEFT JOIN evidencias_actividad ea ON ap.id_actividad = ea.id_actividad AND ea.activo = 1
+       LEFT JOIN evidencias_portafolio ep ON p.id_proyecto = ep.id_proyecto AND ep.activo = 1
+       WHERE p.id_proyecto = ? AND p.activo = 1
+       GROUP BY p.id_proyecto`,
+      [id_proyecto]
+    );
+
+    if (proyectoInfo.length === 0) {
+      return res.status(404).json({ error: "Proyecto no encontrado" });
+    }
+
+    // Obtener actividades recientes del proyecto
+    const [actividades] = await pool.query(
+      `SELECT 
+        ap.id_actividad,
+        ap.titulo,
+        ap.descripcion,
+        ap.estado,
+        ap.prioridad,
+        ap.fecha_inicio,
+        ap.fecha_limite,
+        ap.fecha_creacion,
+        ap.fecha_actualizacion,
+        GROUP_CONCAT(CONCAT(u.nombre, ' ', u.apellido) SEPARATOR ', ') as asignados,
+        COUNT(DISTINCT ea.id_evidencia) as total_evidencias,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'aprobado' THEN ea.id_evidencia END) as evidencias_aprobadas
+       FROM actividades_proyecto ap
+       LEFT JOIN actividad_asignaciones aa ON ap.id_actividad = aa.id_actividad AND aa.activo = 1
+       LEFT JOIN usuarios u ON aa.id_usuario = u.id_usuario
+       LEFT JOIN evidencias_actividad ea ON ap.id_actividad = ea.id_actividad AND ea.activo = 1
+       WHERE ap.id_proyecto = ? AND ap.activo = 1
+       GROUP BY ap.id_actividad
+       ORDER BY ap.fecha_creacion DESC
+       LIMIT 10`,
+      [id_proyecto]
+    );
+
+    // Obtener miembros del equipo
+    const [miembros] = await pool.query(
+      `SELECT 
+        u.id_usuario,
+        u.nombre,
+        u.apellido,
+        u.email,
+        pe.rol,
+        COUNT(DISTINCT aa.id_actividad) as actividades_asignadas,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'completado' AND aa.id_actividad IS NOT NULL THEN ap.id_actividad END) as actividades_completadas
+       FROM proyecto_estudiantes pe
+       INNER JOIN usuarios u ON pe.id_estudiante = u.id_usuario
+       LEFT JOIN actividad_asignaciones aa ON u.id_usuario = aa.id_usuario AND aa.activo = 1
+       LEFT JOIN actividades_proyecto ap ON aa.id_actividad = ap.id_actividad AND ap.id_proyecto = pe.id_proyecto
+       WHERE pe.id_proyecto = ?
+       GROUP BY u.id_usuario
+       ORDER BY pe.rol DESC, u.nombre`,
+      [id_proyecto]
+    );
+
+    // Obtener reuniones recientes del proyecto
+    const [reuniones] = await pool.query(
+      `SELECT 
+        r.id_reunion,
+        r.titulo,
+        r.fecha_reunion,
+        r.estado,
+        COUNT(DISTINCT rp.id_usuario) as total_participantes,
+        COUNT(DISTINCT CASE WHEN rp.confirmado = 1 THEN rp.id_usuario END) as confirmados
+       FROM reuniones r
+       LEFT JOIN reunion_participantes rp ON r.id_reunion = rp.id_reunion
+       WHERE r.id_proyecto = ?
+       GROUP BY r.id_reunion
+       ORDER BY r.fecha_reunion DESC
+       LIMIT 5`,
+      [id_proyecto]
+    );
+
+    const response = {
+      proyecto: proyectoInfo[0],
+      actividades: actividades,
+      miembros: miembros,
+      reuniones: reuniones
+    };
+
+    console.log(`✅ Datos del proyecto ${id_proyecto} enviados correctamente`);
+    res.json(response);
+
+  } catch (error) {
+    console.error('❌ Error al obtener detalles del proyecto:', error);
+    res.status(500).json({ error: "Error al obtener detalles del proyecto" });
+  }
+};

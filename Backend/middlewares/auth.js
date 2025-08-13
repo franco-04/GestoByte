@@ -24,15 +24,21 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'Usuario no encontrado' });
     }
 
-    // Establecer información completa del usuario en req.user
+    // 🔥 IMPORTANTE: Establecer información completa del usuario en req.user
     req.user = {
       id: decoded.id,
-      rol: rows[0].rol,
+      rol: rows[0].rol, // 🔥 Este debe ser el rol de la BD: 'Coordinador', 'Administrador', 'Estudiante'
       nombre: rows[0].nombre,
       apellido: rows[0].apellido,
       email: rows[0].email,
       carrera: rows[0].carrera
     };
+
+    console.log(`🔐 Usuario autenticado:`, {
+      id: req.user.id,
+      rol: req.user.rol,
+      nombre: req.user.nombre
+    });
     
     next();
   } catch (error) {

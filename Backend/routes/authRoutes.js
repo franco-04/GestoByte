@@ -46,6 +46,7 @@ import {
   getEstudiantesProyecto,
   getPortafoliosAsignados,
   getEvidenciasByProyecto,
+  getProyectoDetalleCompleto,
   getEstudiantesPortafolioANDPROYECTS
 } from '../controllers/portfolioController.js';
 
@@ -282,12 +283,18 @@ router.get('/reuniones/:id_reunion', authenticate, getDetalleReunion);
 router.put('/reuniones/:id_reunion', authenticate, canCreateMeetings, actualizarReunion);
 router.post('/reuniones/:id_reunion/confirmar', authenticate, isStudent, confirmarAsistencia);
 
-// ===== RUTAS DE PROYECTOS PARA COORDINADORES =====
-router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
-router.get('/proyectos/:id_proyecto/actividades', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
+router.get('/proyectos/:id_proyecto/reuniones-detalle', authenticate, canCreateMeetings, getDetalleProyectoCoordinador);
+router.get('/proyectos/:id_proyecto/actividades', authenticate, getProjectActivities);
+
+router.get('/proyectos/:id_proyecto/actividades-coordinador', authenticate, canCreateMeetings, getProyectoActividadesCoordinador);
 router.get('/proyectos/:id_proyecto/evidencias', authenticate, getEvidenciasByProyecto);
 
 // ===== RUTAS MISCELÁNEAS =====
 router.get('/estudiantes/carrera/:carrera', authenticate, getEstudiantesByCarrera);
+
+// 🔥 MANTENER SOLO ESTA RUTA (al final):
+router.get('/proyectos/:id_proyecto/detalle', authenticate, canCreateMeetings, getProyectoDetalleCompleto);
+router.get('/reportes/proyecto/:id_proyecto/completo', authenticate, canCreateMeetings, getProyectoDetalleCompleto);
+
 
 export default router;

@@ -80,26 +80,136 @@ export const getStudentProjects = async (req, res) => {
   }
 };
 
-// Obtener actividades del proyecto (Kanban)
 export const getProjectActivities = async (req, res) => {
+  console.log('🚀 [ACTIVIDADES] === FUNCIÓN INICIADA ===');
+  console.log('🚀 [ACTIVIDADES] req.params:', req.params);
+  console.log('🚀 [ACTIVIDADES] req.user:', req.user);
+  
   try {
     const { id_proyecto } = req.params;
     const id_usuario = req.user.id;
+    const rol_usuario = req.user.rol;
 
-    // Verificar acceso al proyecto usando proyecto_estudiantes
-    const [access] = await pool.query(
-      `SELECT pe.rol FROM proyecto_estudiantes pe 
-       WHERE pe.id_proyecto = ? AND pe.id_estudiante = ?`,
-      [id_proyecto, id_usuario]
+    console.log(`🔍 [DEBUG ACTIVIDADES] === INICIO DEBUG ===`);
+    console.log(`🔍 [DEBUG ACTIVIDADES] Proyecto ID: ${id_proyecto}`);
+    console.log(`🔍 [DEBUG ACTIVIDADES] Usuario ID: ${id_usuario}`);
+    console.log(`🔍 [DEBUG ACTIVIDADES] Rol Usuario: ${rol_usuario}`);
+
+    // 🔥 PASO 1: Verificar que el proyecto existe
+    console.log('🔍 [DEBUG ACTIVIDADES] PASO 1: Verificando proyecto existe...');
+    const [proyectoExiste] = await pool.query(
+      `SELECT p.id_proyecto, p.nombre 
+       FROM proyectos p 
+       WHERE p.id_proyecto = ? AND p.activo = 1`,
+      [id_proyecto]
     );
 
-    if (access.length === 0) {
-      return res.status(403).json({ error: "No tienes acceso a este proyecto" });
+    console.log(`📋 [DEBUG ACTIVIDADES] Proyecto existe:`, proyectoExiste.length > 0);
+    console.log(`📋 [DEBUG ACTIVIDADES] Datos proyecto:`, proyectoExiste);
+    
+    if (proyectoExiste.length === 0) {
+      console.log('❌ [DEBUG ACTIVIDADES] Proyecto no encontrado, retornando 404');
+      return res.status(404).json({ error: "Proyecto no encontrado" });
     }
 
-    const userRole = access[0].rol;
+    // 🔥 PASO 2: Verificar acceso con la MISMA consulta que funciona en getProjectMembers
+    console.log('🔍 [DEBUG ACTIVIDADES] PASO 2: Verificando acceso...');
+    console.log(`🔍 [DEBUG ACTIVIDADES] Parámetros de consulta: [${id_usuario}, ${id_usuario}, ${id_usuario}, '${rol_usuario}', ${id_proyecto}, ${id_usuario}, ${id_usuario}, ${id_usuario}, '${rol_usuario}']`);
+    
+    const [acceso] = await pool.query(
+      `SELECT DISTINCT 
+              p.id_proyecto,
+              'acceso_concedido' as resultado,
+              CASE 
+                WHEN port.id_coordinador = ? THEN 'creador_portafolio'
+                WHEN pp.id_asesores = ? THEN 'asesor_asignado'  
+                WHEN pe.id_estudiante = ? THEN 'estudiante_proyecto'
+                WHEN ? = 'Administrador' THEN 'superadministrador'
+                ELSE 'sin_acceso'
+              END as tipo_acceso,
+              port.id_coordinador,
+              pp.id_asesores,
+              pe.id_estudiante
+       FROM proyectos p
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       LEFT JOIN portafolio_profesores pp ON port.id_portafolio = pp.id_portafolio
+       LEFT JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
+       WHERE p.id_proyecto = ? 
+       AND p.activo = 1
+       AND (
+         port.id_coordinador = ? 
+         OR pp.id_asesores = ?
+         OR pe.id_estudiante = ?
+         OR ? = 'Administrador'
+       )`,
+      [
+        id_usuario, id_usuario, id_usuario, rol_usuario, // Para el CASE
+        id_proyecto, // Para el WHERE principal
+        id_usuario, id_usuario, id_usuario, rol_usuario // Para las condiciones OR
+      ]
+    );
 
-    // Obtener actividades con información de asignaciones
+    console.log(`📊 [DEBUG ACTIVIDADES] Resultado de consulta de acceso:`, {
+      filas_encontradas: acceso.length,
+      detalles_completos: acceso,
+      primer_resultado: acceso.length > 0 ? acceso[0] : 'Sin resultados'
+    });
+
+    // 🔥 PASO 3: Verificar acceso
+    if (acceso.length === 0) {
+      console.log(`❌ [DEBUG ACTIVIDADES] Acceso denegado - consulta principal sin resultados`);
+      
+      // DEBUG ADICIONAL: Verificar cada tabla por separado
+      console.log('🔍 [DEBUG ACTIVIDADES] === VERIFICACIÓN DETALLADA ===');
+      
+      const [debugPortafolio] = await pool.query(
+        `SELECT port.id_coordinador, port.id_portafolio
+         FROM proyectos p
+         INNER JOIN programas prog ON p.id_programa = prog.id_programa
+         INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+         WHERE p.id_proyecto = ?`,
+        [id_proyecto]
+      );
+      console.log('📋 [DEBUG] Coordinador portafolio:', debugPortafolio);
+      
+      const [debugProfesores] = await pool.query(
+        `SELECT pp.id_asesores, pp.id_portafolio
+         FROM proyectos p
+         INNER JOIN programas prog ON p.id_programa = prog.id_programa
+         INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+         LEFT JOIN portafolio_profesores pp ON port.id_portafolio = pp.id_portafolio
+         WHERE p.id_proyecto = ?`,
+        [id_proyecto]
+      );
+      console.log('📋 [DEBUG] Profesores asignados:', debugProfesores);
+      
+      const [debugEstudiantes] = await pool.query(
+        `SELECT pe.id_estudiante, pe.rol
+         FROM proyecto_estudiantes pe
+         WHERE pe.id_proyecto = ?`,
+        [id_proyecto]
+      );
+      console.log('📋 [DEBUG] Estudiantes del proyecto:', debugEstudiantes);
+      
+      return res.status(403).json({ 
+        error: "No tienes acceso a este proyecto",
+        debug_info: {
+          proyecto_id: id_proyecto,
+          usuario_id: id_usuario,
+          rol: rol_usuario,
+          coordinador_portafolio: debugPortafolio,
+          profesores_asignados: debugProfesores,
+          estudiantes_proyecto: debugEstudiantes,
+          mensaje: "No se encontró relación de acceso en la consulta principal"
+        }
+      });
+    }
+
+    console.log(`✅ [DEBUG ACTIVIDADES] Acceso concedido como: ${acceso[0].tipo_acceso}`);
+
+    // 🔥 PASO 4: Obtener actividades del proyecto
+    console.log('🔍 [DEBUG ACTIVIDADES] PASO 4: Obteniendo actividades...');
     const [actividades] = await pool.query(
       `SELECT 
         ap.id_actividad,
@@ -109,44 +219,83 @@ export const getProjectActivities = async (req, res) => {
         ap.prioridad,
         ap.fecha_inicio,
         ap.fecha_limite,
-        ap.orden_kanban,
         ap.fecha_creacion,
-        u_creador.nombre as creador_nombre,
-        u_creador.apellido as creador_apellido,
-        GROUP_CONCAT(CONCAT(u_asignado.nombre, ' ', u_asignado.apellido) SEPARATOR ', ') as asignados,
-        GROUP_CONCAT(u_asignado.id_usuario SEPARATOR ',') as ids_asignados,
-        (SELECT COUNT(*) FROM evidencias_actividad ea WHERE ea.id_actividad = ap.id_actividad AND ea.activo = 1) as total_evidencias,
-        (SELECT COUNT(*) FROM evidencias_actividad ea WHERE ea.id_actividad = ap.id_actividad AND ea.estado_revision = 'aprobado' AND ea.activo = 1) as evidencias_aprobadas,
-        (SELECT COUNT(*) FROM comentarios_actividad ca WHERE ca.id_actividad = ap.id_actividad AND ca.activo = 1) as total_comentarios
+        ap.fecha_actualizacion,
+        
+        -- Información básica
+        COALESCE(u_creador.nombre, 'Sistema') as creador_nombre,
+        COALESCE(u_creador.apellido, '') as creador_apellido,
+        
+        -- Asignados (simplificado)
+        GROUP_CONCAT(DISTINCT CONCAT(u_asignado.nombre, ' ', u_asignado.apellido) SEPARATOR ', ') as asignados,
+        
+        -- Estadísticas básicas
+        COUNT(DISTINCT ea.id_evidencia) as total_evidencias,
+        COUNT(DISTINCT CASE WHEN ea.estado_revision = 'aprobado' THEN ea.id_evidencia END) as evidencias_aprobadas,
+        0 as total_comentarios,
+        
+        -- Permisos basados en el tipo de acceso
+        CASE 
+          WHEN ? IN ('creador_portafolio', 'asesor_asignado', 'superadministrador') THEN 1 
+          ELSE 1 
+        END as puede_editar,
+        CASE 
+          WHEN ? IN ('creador_portafolio', 'asesor_asignado', 'superadministrador') THEN 0 
+          ELSE 1 
+        END as puede_subir_evidencia
+        
        FROM actividades_proyecto ap
        LEFT JOIN usuarios u_creador ON ap.id_creador = u_creador.id_usuario
        LEFT JOIN actividad_asignaciones aa ON ap.id_actividad = aa.id_actividad AND aa.activo = 1
        LEFT JOIN usuarios u_asignado ON aa.id_usuario = u_asignado.id_usuario
+       LEFT JOIN evidencias_actividad ea ON ap.id_actividad = ea.id_actividad AND ea.activo = 1
        WHERE ap.id_proyecto = ? AND ap.activo = 1
        GROUP BY ap.id_actividad
-       ORDER BY ap.orden_kanban ASC, ap.fecha_creacion ASC`,
-      [id_proyecto]
+       ORDER BY ap.fecha_creacion DESC`,
+      [acceso[0].tipo_acceso, acceso[0].tipo_acceso, id_proyecto]
     );
 
-    // Procesar los datos para el frontend
-    const actividadesProcesadas = actividades.map(actividad => ({
-      ...actividad,
-      asignados: actividad.asignados ? actividad.asignados.split(', ') : [],
-      ids_asignados: actividad.ids_asignados ? actividad.ids_asignados.split(',').map(id => parseInt(id)) : [],
-      puede_editar: userRole === 'lider' || actividad.ids_asignados?.includes(id_usuario.toString()),
-      puede_subir_evidencia: actividad.ids_asignados?.includes(id_usuario.toString())
-    }));
+    console.log(`📋 [DEBUG ACTIVIDADES] Actividades encontradas: ${actividades.length}`);
 
-    res.json({
-      actividades: actividadesProcesadas,
-      user_role: userRole
-    });
+// NUEVA SECCIÓN: Convertir asignados de string a array para compatibilidad con frontend
+actividades.forEach(actividad => {
+  if (actividad.asignados) {
+    // Convertir string "DAVID FRANCO JUAREZ, JOSUE LOPEZ" a array ["DAVID FRANCO JUAREZ", "JOSUE LOPEZ"]
+    actividad.asignados = actividad.asignados.split(', ').filter(nombre => nombre.trim() !== '');
+  } else {
+    // Si no hay asignados, establecer array vacío
+    actividad.asignados = [];
+  }
+});
+
+console.log(`🔄 [DEBUG ACTIVIDADES] Asignados convertidos a arrays`);
+console.log(`🔍 [DEBUG ACTIVIDADES] === FIN DEBUG ===`);
+
+    console.log(`📋 [DEBUG ACTIVIDADES] Actividades encontradas: ${actividades.length}`);
+    console.log(`🔍 [DEBUG ACTIVIDADES] === FIN DEBUG ===`);
+
+    const response = {
+      actividades: actividades,
+      tipo_acceso: acceso[0].tipo_acceso,
+      permisos: {
+        puede_crear_actividades: ['superadministrador', 'creador_portafolio', 'asesor_asignado'].includes(acceso[0].tipo_acceso),
+        puede_aprobar_actividades: ['superadministrador', 'creador_portafolio', 'asesor_asignado'].includes(acceso[0].tipo_acceso),
+        es_coordinador: ['superadministrador', 'creador_portafolio', 'asesor_asignado'].includes(acceso[0].tipo_acceso)
+      }
+    };
+
+    console.log('✅ [DEBUG ACTIVIDADES] Enviando respuesta:', response);
+    res.json(response);
+
   } catch (error) {
-    console.error('Error al obtener actividades:', error);
-    res.status(500).json({ error: "Error al obtener actividades" });
+    console.error('❌ [DEBUG ACTIVIDADES] Error completo:', error);
+    console.error('❌ [DEBUG ACTIVIDADES] Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: "Error al obtener actividades del proyecto",
+      details: error.message 
+    });
   }
 };
-
 // Crear nueva actividad (solo líderes)
 export const createActivity = async (req, res) => {
   try {
@@ -442,21 +591,76 @@ export const getActivityEvidences = async (req, res) => {
     res.status(500).json({ error: "Error al obtener evidencias" });
   }
 };
-// Obtener miembros del proyecto para asignación
+
 export const getProjectMembers = async (req, res) => {
   try {
     const { id_proyecto } = req.params;
     const id_usuario = req.user.id;
+    const rol_usuario = req.user.rol;
 
-    // Verificar que el usuario es líder
-    const [access] = await pool.query(
-      `SELECT rol FROM proyecto_estudiantes 
-       WHERE id_proyecto = ? AND id_estudiante = ? AND rol = 'lider'`,
-      [id_proyecto, id_usuario]
+    console.log(`🔍 [MIEMBROS] Verificando acceso al proyecto ${id_proyecto} para usuario ${id_usuario} (${rol_usuario})`);
+
+    // 🔥 USAR LA MISMA VALIDACIÓN que en getProyectoDetalleCompleto
+    const [acceso] = await pool.query(
+      `SELECT DISTINCT 
+              p.id_proyecto,
+              CASE 
+                WHEN port.id_coordinador = ? THEN 'creador_portafolio'
+                WHEN pp.id_asesores = ? THEN 'asesor_asignado'  
+                WHEN pe.id_estudiante = ? THEN 'estudiante_proyecto'
+                WHEN ? = 'Administrador' THEN 'superadministrador'
+                ELSE 'sin_acceso'
+              END as tipo_acceso
+       FROM proyectos p
+       INNER JOIN programas prog ON p.id_programa = prog.id_programa
+       INNER JOIN portafolios port ON prog.id_portafolio = port.id_portafolio
+       LEFT JOIN portafolio_profesores pp ON port.id_portafolio = pp.id_portafolio
+       LEFT JOIN proyecto_estudiantes pe ON p.id_proyecto = pe.id_proyecto
+       WHERE p.id_proyecto = ? 
+       AND p.activo = 1
+       AND (
+         port.id_coordinador = ? 
+         OR pp.id_asesores = ?
+         OR pe.id_estudiante = ?
+         OR ? = 'Administrador'
+       )`,
+      [
+        id_usuario, id_usuario, id_usuario, rol_usuario,
+        id_proyecto,
+        id_usuario, id_usuario, id_usuario, rol_usuario
+      ]
     );
 
-    if (access.length === 0) {
-      return res.status(403).json({ error: "Solo los líderes pueden ver los miembros" });
+    console.log(`📊 [MIEMBROS] Resultado de verificación:`, {
+      tiene_acceso: acceso.length > 0,
+      tipo_acceso: acceso.length > 0 ? acceso[0].tipo_acceso : 'sin_acceso'
+    });
+
+    if (acceso.length === 0) {
+      console.log(`❌ [MIEMBROS] Acceso denegado al proyecto ${id_proyecto} para usuario ${id_usuario}`);
+      return res.status(403).json({ 
+        error: "No tienes acceso a este proyecto"
+      });
+    }
+
+    console.log(`✅ [MIEMBROS] Acceso concedido como: ${acceso[0].tipo_acceso}`);
+
+    // 🔥 PERMITIR VER MIEMBROS a coordinadores/asesores Y superadministradores
+    const esCoordinadorOAsesor = ['creador_portafolio', 'asesor_asignado', 'superadministrador'].includes(acceso[0].tipo_acceso);
+    
+    if (!esCoordinadorOAsesor) {
+      // Solo verificar si es líder para estudiantes
+      const [esLider] = await pool.query(
+        `SELECT pe.rol FROM proyecto_estudiantes pe 
+         WHERE pe.id_proyecto = ? AND pe.id_estudiante = ? AND pe.rol = 'lider'`,
+        [id_proyecto, id_usuario]
+      );
+
+      if (esLider.length === 0) {
+        return res.status(403).json({ 
+          error: "Solo los líderes pueden ver los miembros"
+        });
+      }
     }
 
     // Obtener miembros del proyecto
@@ -466,17 +670,24 @@ export const getProjectMembers = async (req, res) => {
         u.nombre,
         u.apellido,
         u.email,
-        pe.rol
+        u.carrera,
+        pe.rol,
+        COUNT(DISTINCT aa.id_actividad) as actividades_asignadas,
+        COUNT(DISTINCT CASE WHEN ap.estado = 'completado' THEN ap.id_actividad END) as actividades_completadas
        FROM proyecto_estudiantes pe
        INNER JOIN usuarios u ON pe.id_estudiante = u.id_usuario
+       LEFT JOIN actividad_asignaciones aa ON u.id_usuario = aa.id_usuario AND aa.activo = 1
+       LEFT JOIN actividades_proyecto ap ON aa.id_actividad = ap.id_actividad AND ap.id_proyecto = pe.id_proyecto
        WHERE pe.id_proyecto = ?
-       ORDER BY pe.rol DESC, u.nombre ASC`,
+       GROUP BY u.id_usuario
+       ORDER BY pe.rol DESC, u.nombre`,
       [id_proyecto]
     );
 
     res.json(miembros);
+
   } catch (error) {
-    console.error('Error al obtener miembros:', error);
+    console.error('❌ [MIEMBROS] Error al obtener miembros:', error);
     res.status(500).json({ error: "Error al obtener miembros del proyecto" });
   }
 };
